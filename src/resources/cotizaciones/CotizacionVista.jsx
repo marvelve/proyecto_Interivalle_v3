@@ -141,8 +141,8 @@ const CotizacionVista = () => {
   }, [detallesFiltrados]);
 
   const limpiarFiltros = () => {
-    setFiltroSemana("SEMANA");
-    setFiltroActividad("ACTIVIDAD");
+    setFiltroSemana("");
+    setFiltroActividad("");
   };
 
   if (loading) {
@@ -243,6 +243,16 @@ const CotizacionVista = () => {
               label="Filtrar por semana"
               value={filtroSemana}
               onChange={(e) => setFiltroSemana(e.target.value)}
+              variant="outlined"
+                size="medium"
+                sx={{
+                    minWidth: 260,
+                    "& .MuiOutlinedInput-root": {
+                    minHeight: 45,
+                    borderRadius: "10px",
+                    backgroundColor: "#0aa000",
+                    },
+                }}
             >
               <MenuItem value="">Todas</MenuItem>
               {semanasDisponibles.map((semana) => (
@@ -260,6 +270,16 @@ const CotizacionVista = () => {
               label="Filtrar por actividad"
               value={filtroActividad}
               onChange={(e) => setFiltroActividad(e.target.value)}
+              variant="outlined"
+                size="medium"
+                sx={{
+                    minWidth: 260,
+                    "& .MuiOutlinedInput-root": {
+                    minHeight: 45,
+                    borderRadius: "10px",
+                    backgroundColor: "#0aa000",
+                    },
+                }}
             >
               <MenuItem value="">Todas</MenuItem>
               {actividadesDisponibles.map((actividad) => (

@@ -10,6 +10,8 @@ import CustomMenu from "../components/CustomMenu";
 import LoginPage from "../pages/LoginPage";
 import Register from "../pages/Register";
 import CotizacionBase from "../pages/CotizacionBase";
+import CotizacionPersonalizadaDetalle from "../pages/CotizacionPersonalizadaDetalle";
+import FormulariosCotizacionPersonalizada from "../pages/FormulariosCotizacionPersonalizada";
 
 import UsuarioList from "../resources/usuarios/UsuarioList";
 import UsuarioEdit from "../resources/usuarios/UsuarioEdit";
@@ -48,7 +50,13 @@ const App = () => {
       </CustomRoutes>
       <CustomRoutes>
       <Route path="/cotizaciones/:idCotizacion/vista" element={<CotizacionVista />} />
+      <Route path="/cotizacion-personalizada/formularios/:idSolicitud"
+      element={<FormulariosCotizacionPersonalizada />}   />
+      <Route
+      path="/cotizaciones-personalizadas/:idCotizacion/detalle"
+        element={<CotizacionPersonalizadaDetalle />} />
     </CustomRoutes>
+
       {(permissions) => [
         permissions === "1" ? (
           <Resource
@@ -78,7 +86,7 @@ const App = () => {
             name="cotizaciones"
             options={{ label: "Cotizaciones" }}
             list={CotizacionList}
-            show={CotizacionShow}
+            show={CotizacionVista}
           />
         ) : null,
 

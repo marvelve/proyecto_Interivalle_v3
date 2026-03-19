@@ -50,6 +50,15 @@ getList: async (resource, params) => {
     };
   }
 
+  if (resource === "cotizaciones") {
+    const { json } = await httpClient(`${apiUrl}/api/cliente/cotizaciones`);
+
+    return {
+      data: mapIdField(json),
+      total: Array.isArray(json) ? json.length : 0,
+    };
+  }
+
   const response = await baseDataProvider.getList(resource, params);
   return {
     ...response,
@@ -57,13 +66,23 @@ getList: async (resource, params) => {
   };
 },
   
-  getOne: async (resource, params) => {
-    const response = await baseDataProvider.getOne(resource, params);
+getOne: async (resource, params) => {
+  if (resource === "cotizaciones") {
+    const { json } = await httpClient(
+      `${apiUrl}/api/cliente/cotizaciones/${params.id}`
+    );
+
     return {
-      ...response,
-      data: mapIdField(response.data),
+      data: mapIdField(json),
     };
-  },
+  }
+
+  const response = await baseDataProvider.getOne(resource, params);
+  return {
+    ...response,
+    data: mapIdField(response.data),
+  };
+},
 
   getMany: async (resource, params) => {
     const response = await baseDataProvider.getMany(resource, params);

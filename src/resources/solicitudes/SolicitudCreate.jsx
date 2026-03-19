@@ -78,7 +78,8 @@ const SolicitudCreate = () => {
     }
 
     if (
-      formData.tipoSolicitud === "COTIZACION_BASE" &&
+      (formData.tipoSolicitud === "COTIZACION_BASE" ||
+        formData.tipoSolicitud === "COTIZACION_PERSONALIZADA") &&
       serviciosSeleccionados.length === 0
     ) {
       notify("Seleccione al menos un servicio", { type: "warning" });
@@ -104,13 +105,14 @@ const SolicitudCreate = () => {
       JSON.stringify(serviciosSeleccionados)
     );
     localStorage.setItem("tipoSolicitud", formData.tipoSolicitud);
+    localStorage.setItem("nombreProyecto", formData.nombreProyecto.trim());
   };
 
-  const redirigirSegunTipo = () => {
+  const redirigirSegunTipo = (solicitudId) => {
     if (formData.tipoSolicitud === "COTIZACION_BASE") {
       navigate("/cotizacion-base");
     } else if (formData.tipoSolicitud === "COTIZACION_PERSONALIZADA") {
-      navigate("/cotizacion-personalizada");
+      navigate(`/cotizacion-personalizada/formularios/${solicitudId}`);
     } else {
       navigate("/visita-tecnica");
     }
@@ -171,14 +173,12 @@ const SolicitudCreate = () => {
     try {
       setLoading(true);
 
-      // 1. Crear siempre una solicitud nueva
       const json = await crearNuevaSolicitud();
       const solicitudIdNueva = json.idSolicitud;
 
       setIdSolicitud(solicitudIdNueva);
       guardarEnLocalStorage(solicitudIdNueva);
 
-      // 2. Cambiar estado de ESA nueva solicitud a GENERADA
       const { json: jsonGenerada } = await httpClient(
         `${apiUrl}/api/solicitudes/${solicitudIdNueva}/generar`,
         {
@@ -195,7 +195,7 @@ const SolicitudCreate = () => {
         type: "success"
       });
 
-      redirigirSegunTipo();
+      redirigirSegunTipo(solicitudIdNueva);
     } catch (error) {
       console.error(error);
       notify(

@@ -256,7 +256,7 @@ const SolicitudSelector = () => {
                       fontWeight: "bold",
                       backgroundColor: "#0aa000",
                       "&:hover": {
-                        backgroundColor: "#088500",
+                        backgroundColor: "#0aa000",
                       },
                     }}
                   >
