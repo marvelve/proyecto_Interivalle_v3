@@ -71,25 +71,62 @@ const CotizacionVista = () => {
     cargarCotizacion();
   }, [idCotizacion]);
 
-  const cargarCotizacion = async () => {
+const cargarCotizacion = async () => {
+  try {
+    const { json } = await httpClient(
+      `${apiUrl}/api/cliente/cotizaciones/${idCotizacion}/vista-completa`
+    );
+
+    console.log("Vista completa cargada:", json);
+    setCotizacion(json);
+  } catch (error) {
+    console.warn("Falló vista-completa, intentando cargar cotización base...", error);
+
+    const mensaje =
+      error?.body?.message || error?.message || "";
+
+    const noHayPersonalizada =
+      mensaje.includes("No existe cotización personalizada");
+
+    if (!noHayPersonalizada) {
+      alert(mensaje || "No se pudo cargar la cotización");
+      setLoading(false);
+      return;
+    }
+
     try {
       const { json } = await httpClient(
-        `${apiUrl}/api/cliente/cotizaciones/${idCotizacion}/vista-completa`
+        `${apiUrl}/api/cliente/cotizaciones/${idCotizacion}`
       );
 
-      console.log("Cotización cargada:", json);
-      setCotizacion(json);
-    } catch (error) {
-      console.error("Error cargando cotización:", error);
+      console.log("Cotización base cargada:", json);
+
+      setCotizacion({
+        idCotizacion: json.idCotizacion,
+        nombreProyecto: json.nombreProyecto,
+        estado: json.estado,
+        totalManoObra: json.totalManoObra ?? 0,
+        totalMateriales: json.totalMateriales ?? 0,
+        totalProductos: json.totalProductos ?? 0,
+        totalEstimado: json.totalEstimado ?? 0,
+        totalEstimadoBase: json.totalEstimado ?? 0,
+        totalAdicionales: 0,
+        totalGeneral: json.totalEstimado ?? 0,
+        detalleBase: json.detalles || [],
+        personalizada: null,
+      });
+    } catch (errorBase) {
+      console.error("Error cargando cotización base:", errorBase);
       alert(
-        error?.body?.message ||
-          error?.message ||
+        errorBase?.body?.message ||
+          errorBase?.message ||
           "No se pudo cargar la cotización"
       );
-    } finally {
-      setLoading(false);
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   const detallesBase = cotizacion?.detalleBase || cotizacion?.detalles || [];
   const personalizada = cotizacion?.personalizada || null;

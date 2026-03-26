@@ -197,7 +197,7 @@ const SolicitudCreate = () => {
       notify(
         error?.body?.message ||
           error?.message ||
-          "Error al crear la cotización",
+          "Error al crear la Solicitud",
         { type: "error" }
       );
     } finally {
@@ -210,7 +210,7 @@ const SolicitudCreate = () => {
       <Card sx={{ maxWidth: 900, mx: "auto", borderRadius: 3, boxShadow: 3 }}>
         <CardContent>
           <Typography variant="h4" fontWeight="bold" mb={3}>
-            Crear Cotización
+            Crear Solicitud
           </Typography>
 
           <Box component="form" onSubmit={(e) => e.preventDefault()}>
@@ -289,7 +289,7 @@ const SolicitudCreate = () => {
                   "&:hover": { backgroundColor: "#088500" }
                 }}
               >
-                {loading ? "Procesando..." : "Crear Cotización"}
+                {loading ? "Procesando..." : "Crear Solicitud"}
               </Button>
             </Box>
           </Box>
