@@ -16,23 +16,29 @@ import FormVidrio from "../resources/Formularios/FormVidrio";
 import FormMezon from "../resources/Formularios/FormMezon";
 
 const FormulariosCotizacionPersonalizada = () => {
-  const { idSolicitud } = useParams();
+  const { idCotizacion } = useParams();
   const navigate = useNavigate();
   const notify = useNotify();
 
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
-  const [solicitud, setSolicitud] = useState(null);
-  const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]);
-  const [idCotizacion, setIdCotizacion] = useState(null);
 
+  const [solicitud, setSolicitud] = useState(null);
+  const [cotizacion, setCotizacion] = useState(null);
+  const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]);
+  const [idSolicitud, setIdSolicitud] = useState(null);
+  const [actividadesCatalogo, setActividadesCatalogo] = useState([]);
+  const [idCotizacionPersonalizada, setIdCotizacionPersonalizada] = useState(null);
   const [obraBlanca, setObraBlanca] = useState([
     {
-      actividad: "",
+      idActividad: "",
       lugar: "",
       cantidad: "",
       medida: "",
+      tipoCobro: "",
+      precioUnitario: "",
       descripcion: "",
+      subtotal: 0,
     },
   ]);
 
@@ -69,16 +75,32 @@ const FormulariosCotizacionPersonalizada = () => {
 
   const nombreProyecto = useMemo(() => {
     return (
+      cotizacion?.nombreProyecto ||
       solicitud?.nombreProyecto ||
       solicitud?.nombreProyectoUsuario ||
       localStorage.getItem("nombreProyecto") ||
       ""
     );
-  }, [solicitud]);
+  }, [cotizacion, solicitud]);
+
+  const actividadesObraBlanca = useMemo(() => {
+    return actividadesCatalogo.filter((item) => {
+      const idServicio = item?.servicios?.idServicio;
+      const nombreServicio = (item?.servicios?.nombreServicio || "").toUpperCase();
+      const estado = item?.estado;
+
+      return (
+        estado === true &&
+        (Number(idServicio) === 1 ||
+          nombreServicio.includes("MANO DE OBRA BLANCA") ||
+          nombreServicio.includes("MANO DE OBRA"))
+      );
+    });
+  }, [actividadesCatalogo]);
 
   useEffect(() => {
     cargarDatosIniciales();
-  }, [idSolicitud]);
+  }, [idCotizacion]);
 
   const cargarDatosIniciales = async () => {
     try {
@@ -92,18 +114,75 @@ const FormulariosCotizacionPersonalizada = () => {
         setServiciosSeleccionados(serviciosLS);
       }
 
-      const { json } = await httpClient(`${apiUrl}/api/solicitudes/${idSolicitud}`, {
-        method: "GET",
-      });
+      try {
+        const { json: catalogoJson } = await httpClient(
+          `${apiUrl}/api/actividades-personalizadas`,
+          {
+            method: "GET",
+          }
+        );
 
-      setSolicitud(json);
+        console.log("Catálogo actividades:", catalogoJson);
+        setActividadesCatalogo(Array.isArray(catalogoJson) ? catalogoJson : []);
+      } catch (errorCatalogo) {
+        console.warn("No fue posible cargar el catálogo de actividades:", errorCatalogo);
+      }
 
-      if ((!serviciosLS || serviciosLS.length === 0) && json?.servicios) {
-        setServiciosSeleccionados(json.servicios);
+      try {
+        const { json: cotizacionJson } = await httpClient(
+          `${apiUrl}/api/cliente/cotizaciones/${idCotizacion}`,
+          {
+            method: "GET",
+          }
+        );
+
+        setCotizacion(cotizacionJson);
+
+        const solicitudIdDesdeCotizacion =
+          cotizacionJson?.idSolicitud ||
+          cotizacionJson?.solicitud?.idSolicitud ||
+          cotizacionJson?.solicitudId;
+
+        if (solicitudIdDesdeCotizacion) {
+          setIdSolicitud(solicitudIdDesdeCotizacion);
+
+          try {
+            const { json: solicitudJson } = await httpClient(
+              `${apiUrl}/api/solicitudes/${solicitudIdDesdeCotizacion}`,
+              {
+                method: "GET",
+              }
+            );
+
+            setSolicitud(solicitudJson);
+
+            if ((!serviciosLS || serviciosLS.length === 0) && solicitudJson?.servicios) {
+              setServiciosSeleccionados(solicitudJson.servicios);
+            }
+          } catch (errorSolicitud) {
+            console.warn("No fue posible cargar la solicitud:", errorSolicitud);
+          }
+        }
+
+        const serviciosDesdeCotizacion =
+          cotizacionJson?.serviciosSeleccionados ||
+          cotizacionJson?.servicios ||
+          cotizacionJson?.detalleServicios;
+
+        if (
+          (!serviciosLS || serviciosLS.length === 0) &&
+          Array.isArray(serviciosDesdeCotizacion) &&
+          serviciosDesdeCotizacion.length > 0
+        ) {
+          setServiciosSeleccionados(serviciosDesdeCotizacion);
+        }
+      } catch (errorCotizacion) {
+        console.error("Error cargando cotización:", errorCotizacion);
+        notify("No fue posible cargar la cotización", { type: "error" });
       }
     } catch (error) {
-      console.error("Error cargando solicitud:", error);
-      notify("No fue posible cargar la solicitud", { type: "error" });
+      console.error("Error cargando datos iniciales:", error);
+      notify("No fue posible cargar los datos iniciales", { type: "error" });
     } finally {
       setLoading(false);
     }
@@ -115,61 +194,87 @@ const FormulariosCotizacionPersonalizada = () => {
     return Number.isNaN(n) ? null : n;
   };
 
-  const crearCotizacionSiNoExiste = async () => {
-    if (idCotizacion) return idCotizacion;
+const crearCotizacionSiNoExiste = async () => {
+  if (idCotizacionPersonalizada) return idCotizacionPersonalizada;
+
+  const payload = {
+    idCotizacion: Number(idCotizacion),
+    idSolicitud: Number(idSolicitud),
+    nombreProyecto: nombreProyecto,
+    observacionGeneral: "Adición de actividades personalizadas",
+  };
+
+  const { json } = await httpClient(`${apiUrl}/api/cotizaciones-personalizadas`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: new Headers({
+      "Content-Type": "application/json",
+    }),
+  });
+
+  const idPersonalizada =
+    json?.idCotizacionPersonalizada ||
+    json?.id ||
+    null;
+
+  if (!idPersonalizada) {
+    throw new Error("No se recibió idCotizacionPersonalizada al crear la cabecera");
+  }
+
+  setIdCotizacionPersonalizada(idPersonalizada);
+  return idPersonalizada;
+};
+
+const guardarObraBlanca = async () => {
+  if (!serviciosSeleccionados.includes(1)) return;
+
+  const esTipoMetro = (tipoCobro = "") =>
+    tipoCobro.toUpperCase().includes("METRO CUADRADO");
+
+  const esTipoUnidad = (tipoCobro = "") =>
+    tipoCobro.toUpperCase().includes("UNIDAD") ||
+    tipoCobro.toUpperCase().includes("OBJETO");
+
+  const actividadesValidas = obraBlanca.filter(
+    (item) =>
+      item.idActividad ||
+      item.lugar?.trim() ||
+      item.cantidad !== "" ||
+      item.medida !== "" ||
+      item.descripcion?.trim()
+  );
+
+  for (const item of actividadesValidas) {
+    const actividadSeleccionada = actividadesObraBlanca.find(
+      (act) => String(act.idActividad) === String(item.idActividad)
+    );
 
     const payload = {
-      idSolicitud: Number(idSolicitud),
-      nombreProyecto: nombreProyecto,
-      observacionGeneral: "Cotización personalizada generada desde formularios",
+      idCotizacion: Number(idCotizacion),
+      idActividad: item.idActividad ? Number(item.idActividad) : null,
+      actividad: actividadSeleccionada?.nombreActividad || "",
+      lugar: item.lugar || "",
+      unidad: item.tipoCobro || null,
+      cantidad: esTipoMetro(item.tipoCobro)
+        ? null
+        : toNumberOrNull(item.cantidad),
+      semanas: null,
+      precioUnitario: toNumberOrNull(item.precioUnitario),
+      medida: esTipoUnidad(item.tipoCobro)
+        ? null
+        : toNumberOrNull(item.medida),
+      descripcion: item.descripcion || "",
     };
 
-    const { json } = await httpClient(`${apiUrl}/api/cotizaciones-personalizadas`, {
+    await httpClient(`${apiUrl}/api/obra-blanca`, {
       method: "POST",
       body: JSON.stringify(payload),
       headers: new Headers({
         "Content-Type": "application/json",
       }),
     });
-
-    setIdCotizacion(json.idCotizacion);
-    return json.idCotizacion;
-  };
-
-  const guardarObraBlanca = async (cotizacionId) => {
-    if (!serviciosSeleccionados.includes(1)) return;
-
-    const actividadesValidas = obraBlanca.filter(
-      (item) =>
-        item.actividad?.trim() ||
-        item.lugar?.trim() ||
-        item.cantidad !== "" ||
-        item.medida !== "" ||
-        item.descripcion?.trim()
-    );
-
-    for (const item of actividadesValidas) {
-      const payload = {
-        idCotizacion: cotizacionId,
-        actividad: item.actividad,
-        lugar: item.lugar,
-        unidad: null,
-        cantidad: toNumberOrNull(item.cantidad),
-        semanas: null,
-        precioUnitario: null,
-        medida: toNumberOrNull(item.medida),
-        descripcion: item.descripcion,
-      };
-
-      await httpClient(`${apiUrl}/api/obra-blanca`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-        headers: new Headers({
-          "Content-Type": "application/json",
-        }),
-      });
-    }
-  };
+  }
+};
 
   const guardarCarpinteria = async (cotizacionId) => {
     if (!serviciosSeleccionados.includes(2)) return;
@@ -241,69 +346,73 @@ const FormulariosCotizacionPersonalizada = () => {
     });
   };
 
-  const guardarTodosLosFormularios = async (cotizacionId) => {
-    await guardarObraBlanca(cotizacionId);
-    await guardarCarpinteria(cotizacionId);
-    await guardarVidrio(cotizacionId);
-    await guardarMeson(cotizacionId);
-  };
+const guardarTodosLosFormularios = async () => {
+  await guardarObraBlanca();
+  await guardarCarpinteria(Number(idCotizacion));
+  await guardarVidrio(Number(idCotizacion));
+  await guardarMeson(Number(idCotizacion));
+};
 
-  const recalcularCotizacion = async (cotizacionId) => {
-    await httpClient(`${apiUrl}/api/cotizaciones-personalizadas/${cotizacionId}/recalcular`, {
+const recalcularCotizacion = async (idPersonalizada) => {
+  await httpClient(
+    `${apiUrl}/api/cotizaciones-personalizadas/${idPersonalizada}/recalcular`,
+    {
       method: "PUT",
       headers: new Headers({
         "Content-Type": "application/json",
       }),
+    }
+  );
+};
+
+const handleGuardarTodo = async () => {
+  try {
+    setGuardando(true);
+
+    const idPersonalizada = await crearCotizacionSiNoExiste();
+    await guardarTodosLosFormularios();
+    await recalcularCotizacion(idPersonalizada);
+
+    notify("Formularios guardados correctamente", { type: "success" });
+    navigate(`/cotizaciones/${idCotizacion}/vista`);
+  } catch (error) {
+    console.error(error);
+    notify(
+      error?.body?.message || error?.message || "Error al guardar los formularios",
+      { type: "error" }
+    );
+  } finally {
+    setGuardando(false);
+  }
+};
+
+const handleGenerarYVer = async () => {
+  try {
+    setGuardando(true);
+
+    const idPersonalizada = await crearCotizacionSiNoExiste();
+    await guardarTodosLosFormularios();
+    await recalcularCotizacion(idPersonalizada);
+
+    notify("Cotización personalizada generada correctamente", {
+      type: "success",
     });
-  };
 
-  const handleGuardarTodo = async () => {
-    try {
-      setGuardando(true);
-
-      const cotizacionId = await crearCotizacionSiNoExiste();
-      await guardarTodosLosFormularios(cotizacionId);
-      await recalcularCotizacion(cotizacionId);
-
-      notify("Formularios guardados correctamente", { type: "success" });
-    } catch (error) {
-      console.error(error);
-      notify(
-        error?.body?.message || error?.message || "Error al guardar los formularios",
-        { type: "error" }
-      );
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  const handleGenerarYVer = async () => {
-    try {
-      setGuardando(true);
-
-      const cotizacionId = await crearCotizacionSiNoExiste();
-      await guardarTodosLosFormularios(cotizacionId);
-      await recalcularCotizacion(cotizacionId);
-
-      notify("Cotización personalizada generada correctamente", {
-        type: "success",
-      });
-
-      navigate(`/cotizaciones-personalizadas/${cotizacionId}/detalle`);
-    } catch (error) {
-      console.error(error);
-      notify(
-        error?.body?.message || error?.message || "Error al generar la cotización",
-        { type: "error" }
-      );
-    } finally {
-      setGuardando(false);
-    }
-  };
+    navigate(`/cotizaciones/${idCotizacion}/vista`);
+  } catch (error) {
+    console.error(error);
+    notify(
+      error?.body?.message || error?.message || "Error al generar la cotización",
+      { type: "error" }
+    );
+  } finally {
+    setGuardando(false);
+  }
+};
 
   const nombresServicios = serviciosSeleccionados
     .map((id) => {
-      if (id === 1) return "Mano de Obra";
+      if (id === 1) return "Mano de Obra Blanca";
       if (id === 2) return "Carpintería";
       if (id === 3) return "Divisiones en Vidrio";
       if (id === 4) return "Mesón Granito";
@@ -337,19 +446,25 @@ const FormulariosCotizacionPersonalizada = () => {
               border: "1px solid #dbe7ff",
             }}
           >
-            <Typography>
-              <strong>Solicitud:</strong> {idSolicitud}
+            <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+              Cotización N° {cotizacion?.idCotizacion || idCotizacion}
             </Typography>
+
             <Typography>
               <strong>Proyecto:</strong> {nombreProyecto || "Sin nombre"}
             </Typography>
+
             <Typography>
               <strong>Servicios seleccionados:</strong> {nombresServicios || "Ninguno"}
             </Typography>
           </Box>
 
           {serviciosSeleccionados.includes(1) && (
-            <FormObraBlanca data={obraBlanca} onChange={setObraBlanca} />
+            <FormObraBlanca
+              actividadesCatalogo={actividadesObraBlanca}
+              value={obraBlanca}
+              onChange={setObraBlanca}
+            />
           )}
 
           {serviciosSeleccionados.includes(2) && (
@@ -367,7 +482,7 @@ const FormulariosCotizacionPersonalizada = () => {
           <Box display="flex" justifyContent="flex-end" gap={2} mt={4}>
             <Button
               variant="outlined"
-              onClick={() => navigate("/solicitudes")}
+              onClick={() => navigate(`/cotizaciones/${idCotizacion}/vista`)}
               disabled={guardando}
             >
               Cancelar
@@ -378,7 +493,7 @@ const FormulariosCotizacionPersonalizada = () => {
               onClick={handleGuardarTodo}
               disabled={guardando}
             >
-              {guardando ? "Guardando..." : "Guardar formularios"}
+              {guardando ? "Guardando..." : "GUARDAR"}
             </Button>
 
             <Button
@@ -390,7 +505,7 @@ const FormulariosCotizacionPersonalizada = () => {
                 "&:hover": { backgroundColor: "#088500" },
               }}
             >
-              {guardando ? "Procesando..." : "Generar y ver cotización"}
+              {guardando ? "Procesando..." : "COTIZACIÓN PERSONALIZADA"}
             </Button>
           </Box>
         </CardContent>

@@ -24,7 +24,6 @@ const serviciosDisponibles = [
 
 const tiposSolicitud = [
   { value: "COTIZACION_BASE", label: "Cotización Base" },
-  { value: "COTIZACION_PERSONALIZADA", label: "Cotización Personalizada" },
   { value: "VISITA_TECNICA", label: "Visita Técnica" }
 ];
 
@@ -78,8 +77,7 @@ const SolicitudCreate = () => {
     }
 
     if (
-      (formData.tipoSolicitud === "COTIZACION_BASE" ||
-        formData.tipoSolicitud === "COTIZACION_PERSONALIZADA") &&
+      (formData.tipoSolicitud === "COTIZACION_BASE") &&
       serviciosSeleccionados.length === 0
     ) {
       notify("Seleccione al menos un servicio", { type: "warning" });
@@ -111,8 +109,6 @@ const SolicitudCreate = () => {
   const redirigirSegunTipo = (solicitudId) => {
     if (formData.tipoSolicitud === "COTIZACION_BASE") {
       navigate("/cotizacion-base");
-    } else if (formData.tipoSolicitud === "COTIZACION_PERSONALIZADA") {
-      navigate(`/cotizacion-personalizada/formularios/${solicitudId}`);
     } else {
       navigate("/visita-tecnica");
     }

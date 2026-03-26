@@ -1,134 +1,395 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
+  Card,
+  CardContent,
   Grid,
   TextField,
   Typography,
   Button,
-  Card,
-  CardContent,
+  MenuItem,
 } from "@mui/material";
 
 const crearActividadVacia = () => ({
-  actividad: "",
+  idActividad: "",
   lugar: "",
   cantidad: "",
   medida: "",
+  tipoCobro: "",
+  precioUnitario: "",
   descripcion: "",
+  subtotal: 0,
 });
 
-const FormObraBlanca = ({ data = [], onChange }) => {
-  const actividades = Array.isArray(data) && data.length > 0 ? data : [crearActividadVacia()];
+const FormObraBlanca = ({
+  actividadesCatalogo = [],
+  value = [],
+  onChange,
+  titulo = "Formulario Mano de Obra / Obra Blanca",
+}) => {
+  const [actividades, setActividades] = useState(
+    Array.isArray(value) && value.length > 0 ? value : [crearActividadVacia()]
+  );
 
-  const handleItemChange = (index, e) => {
-    const { name, value } = e.target;
-    const nuevas = [...actividades];
-    nuevas[index] = {
-      ...nuevas[index],
-      [name]: value,
+  const [touched, setTouched] = useState({});
+  const [intentoAgregar, setIntentoAgregar] = useState(false);
+  const [intentoGuardar, setIntentoGuardar] = useState(false);
+
+  const catalogoNormalizado = useMemo(() => {
+    if (!Array.isArray(actividadesCatalogo)) return [];
+
+    return actividadesCatalogo
+      .filter((act) => act?.estado !== false)
+      .map((act) => ({
+        idActividad: act.idActividad ?? act.id ?? "",
+        nombreActividad: act.nombreActividad ?? act.nombre ?? "",
+        tipoCobro: act.tipoCobro ?? act.tipo_cobro ?? act.unidadCobro ?? "",
+        precioUnitario:
+          act.precioUnitario ?? act.precio ?? act.valorUnitario ?? "",
+        descripcion:
+          act.descripcion ?? act.nombreActividad ?? act.nombre ?? "",
+      }));
+  }, [actividadesCatalogo]);
+
+  useEffect(() => {
+    if (Array.isArray(value) && value.length > 0) {
+      setActividades(value);
+    }
+  }, [value]);
+
+  useEffect(() => {
+    if (onChange) {
+      onChange(actividades);
+    }
+  }, [actividades, onChange]);
+
+  const marcarTouched = (index, campo) => {
+    setTouched((prev) => ({
+      ...prev,
+      [index]: {
+        ...(prev[index] || {}),
+        [campo]: true,
+      },
+    }));
+  };
+
+  const debeMostrarError = (index, campo) => {
+    return touched[index]?.[campo] || intentoAgregar || intentoGuardar;
+  };
+
+  const esVacio = (valor) =>
+    valor === null || valor === undefined || valor === "";
+
+  const esNumeroValido = (valor) =>
+    !esVacio(valor) && !isNaN(Number(valor)) && Number(valor) > 0;
+
+  const esTipoMetro = (tipoCobro = "") =>
+    tipoCobro.toUpperCase().includes("METRO CUADRADO");
+
+  const esTipoUnidad = (tipoCobro = "") =>
+    tipoCobro.toUpperCase().includes("UNIDAD");
+
+  const getErrorActividad = (item, index) => {
+    if (!debeMostrarError(index, "idActividad")) return false;
+    return !item.idActividad;
+  };
+
+  const getErrorCantidad = (item, index) => {
+    if (esTipoMetro(item.tipoCobro)) return false;
+    if (!debeMostrarError(index, "cantidad")) return false;
+    return !esNumeroValido(item.cantidad);
+  };
+
+  const getErrorMedida = (item, index) => {
+    if (esTipoUnidad(item.tipoCobro)) return false;
+    if (!debeMostrarError(index, "medida")) return false;
+    return !esNumeroValido(item.medida);
+  };
+
+  const actividadEsValida = (item) => {
+    if (!item.idActividad) return false;
+
+    if (esTipoMetro(item.tipoCobro)) {
+      return esNumeroValido(item.medida);
+    }
+
+    if (esTipoUnidad(item.tipoCobro)) {
+      return esNumeroValido(item.cantidad);
+    }
+
+    return esNumeroValido(item.cantidad) && esNumeroValido(item.medida);
+  };
+
+  const recalcularSubtotal = (actividadActualizada) => {
+    const cantidad = Number(actividadActualizada.cantidad || 0);
+    const medida = Number(actividadActualizada.medida || 0);
+    const precioUnitario = Number(actividadActualizada.precioUnitario || 0);
+    const tipoCobro = (actividadActualizada.tipoCobro || "").toUpperCase();
+
+    let subtotal = 0;
+
+    if (tipoCobro.includes("METRO CUADRADO")) {
+      subtotal = medida * precioUnitario;
+    } else if (tipoCobro.includes("UNIDAD")) {
+      subtotal = cantidad * precioUnitario;
+    } else {
+      subtotal = cantidad * precioUnitario;
+    }
+
+    return {
+      ...actividadActualizada,
+      subtotal,
     };
-    onChange(nuevas);
+  };
+
+  const handleChange = (index, campo, valor) => {
+    const nuevas = [...actividades];
+    nuevas[index] = recalcularSubtotal({
+      ...nuevas[index],
+      [campo]: valor,
+    });
+    setActividades(nuevas);
+  };
+
+  const handleSeleccionActividad = (index, idActividad) => {
+    marcarTouched(index, "idActividad");
+
+    const actividadSeleccionada = catalogoNormalizado.find(
+      (act) => String(act.idActividad) === String(idActividad)
+    );
+
+    const nuevas = [...actividades];
+
+    if (!actividadSeleccionada) {
+      nuevas[index] = recalcularSubtotal({
+        ...nuevas[index],
+        idActividad: "",
+        tipoCobro: "",
+        precioUnitario: "",
+        descripcion: "",
+        cantidad: "",
+        medida: "",
+      });
+      setActividades(nuevas);
+      return;
+    }
+
+    const tipoCobro = actividadSeleccionada.tipoCobro || "";
+
+    nuevas[index] = recalcularSubtotal({
+      ...nuevas[index],
+      idActividad: actividadSeleccionada.idActividad,
+      tipoCobro,
+      precioUnitario: actividadSeleccionada.precioUnitario || "",
+      descripcion: actividadSeleccionada.descripcion || "",
+      cantidad: esTipoMetro(tipoCobro) ? "" : nuevas[index].cantidad,
+      medida: esTipoUnidad(tipoCobro) ? "" : nuevas[index].medida,
+    });
+
+    setActividades(nuevas);
   };
 
   const agregarActividad = () => {
-    onChange([...actividades, crearActividadVacia()]);
+    setIntentoAgregar(true);
+
+    const ultima = actividades[actividades.length - 1];
+    if (!actividadEsValida(ultima)) {
+      return;
+    }
+
+    setActividades([...actividades, crearActividadVacia()]);
+    setIntentoAgregar(false);
   };
 
   const eliminarActividad = (index) => {
+    if (actividades.length === 1) {
+      setActividades([crearActividadVacia()]);
+      setTouched({});
+      return;
+    }
+
     const nuevas = actividades.filter((_, i) => i !== index);
-    onChange(nuevas.length > 0 ? nuevas : [crearActividadVacia()]);
+    setActividades(nuevas);
   };
 
+  const totalGeneral = useMemo(() => {
+    return actividades.reduce(
+      (acc, item) => acc + Number(item.subtotal || 0),
+      0
+    );
+  }, [actividades]);
+
   return (
-    <Box mb={4}>
-      <Typography variant="h6" mb={2}>
-        Formulario Mano de Obra / Obra Blanca
+    <Box>
+      <Typography variant="h4" sx={{ mb: 3 }}>
+        {titulo}
       </Typography>
 
       {actividades.map((item, index) => (
-        <Card key={index} sx={{ mb: 2, borderRadius: 2, boxShadow: 1 }}>
-          <CardContent>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="subtitle1" fontWeight="bold">
-                Actividad {index + 1}
-              </Typography>
+        <Card
+          key={index}
+          sx={{
+            mb: 3,
+            borderRadius: 3,
+            boxShadow: 2,
+          }}
+        >
+          <CardContent sx={{ p: 4 }}>
+            <Typography variant="h5" sx={{ mb: 3 }}>
+              Actividad {index + 1}
+            </Typography>
 
-              {actividades.length > 1 && (
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={5}>
+                <TextField
+                  select
+                  fullWidth
+                  required
+                  label="Actividad"
+                  value={item.idActividad ?? ""}
+                  onChange={(e) => handleSeleccionActividad(index, e.target.value)}
+                  onBlur={() => marcarTouched(index, "idActividad")}
+                  error={getErrorActividad(item, index)}
+                  helperText={
+                    getErrorActividad(item, index)
+                      ? "La actividad es obligatoria"
+                      : " "
+                  }
+                  InputLabelProps={{ shrink: true }}
+                  SelectProps={{ displayEmpty: true }}
+                  sx={{ minWidth: 280 }}
+                >
+
+                  {catalogoNormalizado.map((act) => (
+                    <MenuItem key={act.idActividad} value={act.idActividad}>
+                      {act.nombreActividad}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12} md={3}>
+                <TextField
+                  fullWidth
+                  label="Lugar"
+                  value={item.lugar ?? ""}
+                  onChange={(e) => handleChange(index, "lugar", e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={2}>
+                <TextField
+                  fullWidth
+                  required={!esTipoMetro(item.tipoCobro)}
+                  disabled={esTipoMetro(item.tipoCobro)}
+                  label="Cantidad"
+                  type="number"
+                  value={item.cantidad ?? ""}
+                  onChange={(e) => handleChange(index, "cantidad", e.target.value)}
+                  onBlur={() => marcarTouched(index, "cantidad")}
+                  error={getErrorCantidad(item, index)}
+                  helperText={
+                    esTipoMetro(item.tipoCobro)
+                      ? "No aplica para metro cuadrado"
+                      : getErrorCantidad(item, index)
+                      ? "La cantidad es obligatoria"
+                      : " "
+                  }
+                  inputProps={{ min: 1 }}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={2}>
+                <TextField
+                  fullWidth
+                  required={!esTipoUnidad(item.tipoCobro)}
+                  disabled={esTipoUnidad(item.tipoCobro)}
+                  label="Medida (m²)"
+                  type="number"
+                  value={item.medida ?? ""}
+                  onChange={(e) => handleChange(index, "medida", e.target.value)}
+                  onBlur={() => marcarTouched(index, "medida")}
+                  error={getErrorMedida(item, index)}
+                  helperText={
+                    esTipoUnidad(item.tipoCobro)
+                      ? "No aplica para unidad"
+                      : getErrorMedida(item, index)
+                      ? "La medida es obligatoria"
+                      : " "
+                  }
+                  inputProps={{ min: 0.01, step: "any" }}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={3}>
+                <TextField
+                  fullWidth
+                  label="Tipo de cobro"
+                  value={item.tipoCobro ?? ""}
+                  InputProps={{ readOnly: true }}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={3}>
+                <TextField
+                  fullWidth
+                  label="Precio unitario"
+                  value={item.precioUnitario ?? ""}
+                  InputProps={{ readOnly: true }}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={3}>
+                <TextField
+                  fullWidth
+                  label="Descripción"
+                  value={item.descripcion ?? ""}
+                  InputProps={{ readOnly: true }}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={3}>
+                <TextField
+                  fullWidth
+                  label="Subtotal"
+                  value={item.subtotal ?? 0}
+                  InputProps={{ readOnly: true }}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={3}>
                 <Button
                   variant="outlined"
                   color="error"
                   onClick={() => eliminarActividad(index)}
+                  fullWidth
+                  sx={{ height: "56px" }}
                 >
-                  Eliminar
+                  ELIMINAR ACTIVIDAD
                 </Button>
-              )}
-            </Box>
-
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Actividad"
-                  name="actividad"
-                  value={item.actividad || ""}
-                  onChange={(e) => handleItemChange(index, e)}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Lugar"
-                  name="lugar"
-                  value={item.lugar || ""}
-                  onChange={(e) => handleItemChange(index, e)}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Cantidad"
-                  name="cantidad"
-                  value={item.cantidad || ""}
-                  onChange={(e) => handleItemChange(index, e)}
-                  inputProps={{ min: 0, step: 1 }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Medida"
-                  name="medida"
-                  value={item.medida || ""}
-                  onChange={(e) => handleItemChange(index, e)}
-                  inputProps={{ min: 0, step: "0.01" }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={8}>
-                <TextField
-                  fullWidth
-                  multiline
-                  minRows={3}
-                  label="Descripción"
-                  name="descripcion"
-                  value={item.descripcion || ""}
-                  onChange={(e) => handleItemChange(index, e)}
-                />
               </Grid>
             </Grid>
           </CardContent>
         </Card>
       ))}
 
-      <Box mt={2}>
+      <Box sx={{ display: "flex", gap: 2, mt: 2, mb: 3 }}>
         <Button variant="contained" onClick={agregarActividad}>
-          Agregar otra actividad
+          AGREGAR OTRA ACTIVIDAD
         </Button>
+      </Box>
+
+      <Box sx={{ mt: 2 }}>
+        <Typography variant="h6">
+          Total general: {totalGeneral}
+        </Typography>
       </Box>
     </Box>
   );

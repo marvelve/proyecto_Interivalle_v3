@@ -50,11 +50,15 @@ const App = () => {
       </CustomRoutes>
       <CustomRoutes>
       <Route path="/cotizaciones/:idCotizacion/vista" element={<CotizacionVista />} />
-      <Route path="/cotizacion-personalizada/formularios/:idSolicitud"
+      <Route path="/cotizacion-personalizada/formularios/:idCotizacion"
       element={<FormulariosCotizacionPersonalizada />}   />
       <Route
       path="/cotizaciones-personalizadas/:idCotizacion/detalle"
         element={<CotizacionPersonalizadaDetalle />} />
+      
+      <Route
+          path="/cotizaciones/:idCotizacion/cronograma"
+          element={<CronogramaCreate />}/>
     </CustomRoutes>
 
       {(permissions) => [

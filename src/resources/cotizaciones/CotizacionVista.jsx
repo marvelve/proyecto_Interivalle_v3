@@ -21,6 +21,14 @@ const formatearMoneda = (valor) => {
   }).format(Number(valor));
 };
 
+const formatearNumero = (valor) => {
+  if (valor === null || valor === undefined || valor === "") return "-";
+  return new Intl.NumberFormat("es-CO", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(Number(valor));
+};
+
 const estilos = {
   tabla: {
     width: "100%",
@@ -45,6 +53,7 @@ const estilos = {
     background: "#f8f9fb",
     border: "1px solid #ddd",
     textAlign: "center",
+    minHeight: "100px",
   },
 };
 
@@ -65,11 +74,10 @@ const CotizacionVista = () => {
   const cargarCotizacion = async () => {
     try {
       const { json } = await httpClient(
-        `${apiUrl}/api/cliente/cotizaciones/${idCotizacion}`
+        `${apiUrl}/api/cliente/cotizaciones/${idCotizacion}/vista-completa`
       );
 
       console.log("Cotización cargada:", json);
-
       setCotizacion(json);
     } catch (error) {
       console.error("Error cargando cotización:", error);
@@ -83,26 +91,31 @@ const CotizacionVista = () => {
     }
   };
 
-  const detalles = cotizacion?.detalles || [];
+  const detallesBase = cotizacion?.detalleBase || cotizacion?.detalles || [];
+  const personalizada = cotizacion?.personalizada || null;
+  const adicionalesObraBlanca = personalizada?.obraBlanca || [];
+  const adicionalesCarpinteria = personalizada?.carpinteria || [];
+  const adicionalesVidrio = personalizada?.vidrio || [];
+  const adicionalesMeson = personalizada?.mesonGranito || [];
 
   const semanasDisponibles = useMemo(() => {
-    const semanas = detalles
+    const semanas = detallesBase
       .map((item) => item?.semana)
       .filter((s) => s !== null && s !== undefined);
 
     return [...new Set(semanas)].sort((a, b) => a - b);
-  }, [detalles]);
+  }, [detallesBase]);
 
   const actividadesDisponibles = useMemo(() => {
-    const actividades = detalles
+    const actividades = detallesBase
       .map((item) => item?.actividadMaterial)
       .filter((a) => a && a.trim() !== "");
 
     return [...new Set(actividades)].sort((a, b) => a.localeCompare(b));
-  }, [detalles]);
+  }, [detallesBase]);
 
   const detallesFiltrados = useMemo(() => {
-    return detalles.filter((item) => {
+    return detallesBase.filter((item) => {
       const cumpleSemana =
         filtroSemana === "" || Number(item?.semana) === Number(filtroSemana);
 
@@ -111,12 +124,11 @@ const CotizacionVista = () => {
 
       return cumpleSemana && cumpleActividad;
     });
-  }, [detalles, filtroSemana, filtroActividad]);
+  }, [detallesBase, filtroSemana, filtroActividad]);
 
   const totalesFiltrados = useMemo(() => {
     let totalManoObra = 0;
     let totalMateriales = 0;
-    let totalProductos = 0;
     let totalGeneral = 0;
 
     detallesFiltrados.forEach((item) => {
@@ -127,15 +139,12 @@ const CotizacionVista = () => {
         totalManoObra += subtotal;
       } else if (item?.tipoItem === "MATERIAL") {
         totalMateriales += subtotal;
-      } else if (item?.tipoItem === "PRODUCTO") {
-        totalProductos += subtotal;
-      }
+      } 
     });
 
     return {
       totalManoObra,
       totalMateriales,
-      totalProductos,
       totalGeneral,
     };
   }, [detallesFiltrados]);
@@ -178,7 +187,7 @@ const CotizacionVista = () => {
         </Typography>
 
         <Grid container spacing={2} mb={4}>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={2}>
             <Box sx={estilos.resumenCard}>
               <Typography variant="subtitle2">Total Mano de Obra</Typography>
               <Typography variant="h6">
@@ -191,7 +200,7 @@ const CotizacionVista = () => {
             </Box>
           </Grid>
 
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={2}>
             <Box sx={estilos.resumenCard}>
               <Typography variant="subtitle2">Total Materiales</Typography>
               <Typography variant="h6">
@@ -204,27 +213,34 @@ const CotizacionVista = () => {
             </Box>
           </Grid>
 
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={2}>
             <Box sx={estilos.resumenCard}>
-              <Typography variant="subtitle2">Total Productos</Typography>
+              <Typography variant="subtitle2">Total Base</Typography>
               <Typography variant="h6">
                 {formatearMoneda(
-                  filtroSemana || filtroActividad
-                    ? totalesFiltrados.totalProductos
-                    : cotizacion.totalProductos
+                  cotizacion.totalEstimadoBase ?? cotizacion.totalEstimado
                 )}
               </Typography>
             </Box>
           </Grid>
 
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={2}>
             <Box sx={estilos.resumenCard}>
-              <Typography variant="subtitle2">Total Estimado</Typography>
+              <Typography variant="subtitle2">Total Adicionales</Typography>
+              <Typography variant="h6">
+                {formatearMoneda(cotizacion.totalAdicionales ?? 0)}
+              </Typography>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={2}>
+            <Box sx={estilos.resumenCard}>
+              <Typography variant="subtitle2">Total General</Typography>
               <Typography variant="h6">
                 {formatearMoneda(
-                  filtroSemana || filtroActividad
-                    ? totalesFiltrados.totalGeneral
-                    : cotizacion.totalEstimado
+                  cotizacion.totalGeneral ??
+                    cotizacion.totalEstimado ??
+                    0
                 )}
               </Typography>
             </Box>
@@ -244,15 +260,15 @@ const CotizacionVista = () => {
               value={filtroSemana}
               onChange={(e) => setFiltroSemana(e.target.value)}
               variant="outlined"
-                size="medium"
-                sx={{
-                    minWidth: 260,
-                    "& .MuiOutlinedInput-root": {
-                    minHeight: 45,
-                    borderRadius: "10px",
-                    backgroundColor: "#0aa000",
-                    },
-                }}
+              size="medium"
+              sx={{
+                minWidth: 260,
+                "& .MuiOutlinedInput-root": {
+                  minHeight: 45,
+                  borderRadius: "10px",
+                  backgroundColor: "#14d106",
+                },
+              }}
             >
               <MenuItem value="">Todas</MenuItem>
               {semanasDisponibles.map((semana) => (
@@ -271,15 +287,15 @@ const CotizacionVista = () => {
               value={filtroActividad}
               onChange={(e) => setFiltroActividad(e.target.value)}
               variant="outlined"
-                size="medium"
-                sx={{
-                    minWidth: 260,
-                    "& .MuiOutlinedInput-root": {
-                    minHeight: 45,
-                    borderRadius: "10px",
-                    backgroundColor: "#0aa000",
-                    },
-                }}
+              size="medium"
+              sx={{
+                minWidth: 260,
+                "& .MuiOutlinedInput-root": {
+                  minHeight: 45,
+                  borderRadius: "10px",
+                  backgroundColor: "#14d106",
+                },
+              }}
             >
               <MenuItem value="">Todas</MenuItem>
               {actividadesDisponibles.map((actividad) => (
@@ -297,15 +313,34 @@ const CotizacionVista = () => {
 
             <Button
               variant="contained"
+              color="success"
               onClick={() => navigate("/cotizaciones")}
             >
-              Volver
+              VOLVER
+            </Button>
+
+            <Button
+              variant="contained"
+              color="success"
+              onClick={() =>
+                navigate(`/cotizacion-personalizada/formularios/${idCotizacion}`)
+              }
+            >
+              ADICIONAR A COTIZACION
+            </Button>
+
+            <Button
+              variant="contained"
+              color="success"
+              onClick={() => navigate(`/cotizaciones/${idCotizacion}/cronograma`)}
+            >
+              GENERAR CRONOGRAMA
             </Button>
           </Grid>
         </Grid>
 
         <Typography variant="h5" fontWeight="bold" mb={2}>
-          Detalle de la cotización
+          Detalle de la cotización base
         </Typography>
 
         <Box sx={{ overflowX: "auto" }}>
@@ -349,6 +384,126 @@ const CotizacionVista = () => {
               )}
             </tbody>
           </table>
+        </Box>
+
+        <Typography variant="h5" fontWeight="bold" mt={5} mb={2}>
+          Actividades adicionales
+        </Typography>
+
+        {adicionalesObraBlanca.length === 0 &&
+        adicionalesCarpinteria.length === 0 &&
+        adicionalesVidrio.length === 0 &&
+        adicionalesMeson.length === 0 ? (
+          <Typography>No hay actividades adicionales registradas.</Typography>
+        ) : (
+          <>
+            {adicionalesObraBlanca.length > 0 && (
+              <>
+                <Typography variant="h6" fontWeight="bold" mt={2}>
+                  Mano de Obra / Obra Blanca
+                </Typography>
+
+                <Box sx={{ overflowX: "auto" }}>
+                  <table style={estilos.tabla}>
+                    <thead>
+                      <tr>
+                        <th style={estilos.th}>Actividad</th>
+                        <th style={estilos.th}>Lugar</th>
+                        <th style={estilos.th}>Unidad</th>
+                        <th style={estilos.th}>Cantidad</th>
+                        <th style={estilos.th}>Medida</th>
+                        <th style={estilos.th}>Precio Unitario</th>
+                        <th style={estilos.th}>Subtotal</th>
+                        <th style={estilos.th}>Descripción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adicionalesObraBlanca.map((item, index) => (
+                        <tr key={item.idObraBlanca || index}>
+                          <td style={estilos.td}>{item.actividad || "-"}</td>
+                          <td style={estilos.td}>{item.lugar || "-"}</td>
+                          <td style={estilos.td}>{item.unidad || "-"}</td>
+                          <td style={estilos.td}>{item.cantidad ?? "-"}</td>
+                          <td style={estilos.td}>{formatearNumero(item.medida)}</td>
+                          <td style={estilos.td}>
+                            {formatearMoneda(item.precioUnitario)}
+                          </td>
+                          <td style={estilos.td}>
+                            {formatearMoneda(item.subtotal)}
+                          </td>
+                          <td style={estilos.td}>{item.descripcion || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Box>
+              </>
+            )}
+
+            {adicionalesCarpinteria.length > 0 && (
+              <>
+                <Typography variant="h6" fontWeight="bold" mt={4}>
+                  Carpintería adicional
+                </Typography>
+                <Typography>Hay registros adicionales de carpintería.</Typography>
+              </>
+            )}
+
+            {adicionalesVidrio.length > 0 && (
+              <>
+                <Typography variant="h6" fontWeight="bold" mt={4}>
+                  Vidrio adicional
+                </Typography>
+                <Typography>Hay registros adicionales de vidrio.</Typography>
+              </>
+            )}
+
+            {adicionalesMeson.length > 0 && (
+              <>
+                <Typography variant="h6" fontWeight="bold" mt={4}>
+                  Mesón granito adicional
+                </Typography>
+                <Typography>Hay registros adicionales de mesón.</Typography>
+              </>
+            )}
+          </>
+        )}
+
+        <Box mt={4}>
+          <Paper
+            elevation={1}
+            sx={{
+              p: 3,
+              borderRadius: 3,
+              backgroundColor: "#f8f9fb",
+              border: "1px solid #ddd",
+            }}
+          >
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              Resumen final
+            </Typography>
+
+            <Typography sx={{ mb: 1 }}>
+              <strong>Total cotización base:</strong>{" "}
+              {formatearMoneda(
+                cotizacion.totalEstimadoBase ?? cotizacion.totalEstimado
+              )}
+            </Typography>
+
+            <Typography sx={{ mb: 1 }}>
+              <strong>Total adicionales:</strong>{" "}
+              {formatearMoneda(cotizacion.totalAdicionales ?? 0)}
+            </Typography>
+
+            <Typography variant="h6" color="success.main">
+              <strong>Total general:</strong>{" "}
+              {formatearMoneda(
+                cotizacion.totalGeneral ??
+                  cotizacion.totalEstimado ??
+                  0
+              )}
+            </Typography>
+          </Paper>
         </Box>
       </Paper>
     </Box>
