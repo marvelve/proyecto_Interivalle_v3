@@ -489,14 +489,6 @@ const handleGenerarYVer = async () => {
             </Button>
 
             <Button
-              variant="outlined"
-              onClick={handleGuardarTodo}
-              disabled={guardando}
-            >
-              {guardando ? "Guardando..." : "GUARDAR"}
-            </Button>
-
-            <Button
               variant="contained"
               onClick={handleGenerarYVer}
               disabled={guardando}

@@ -289,7 +289,7 @@ const SolicitudCreate = () => {
                   "&:hover": { backgroundColor: "#088500" }
                 }}
               >
-                {loading ? "Procesando..." : "Crear Solicitud"}
+                {loading ? "Procesando..." : "Siguiente.."}
               </Button>
             </Box>
           </Box>

@@ -15,7 +15,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import { Chip } from "@mui/material";
 
-import apiUrl, { httpClient } from "../../app/httpClient";
+import httpClient, { apiUrl } from "../../app/httpClient";
 import SolicitudVacia from "./SolicitudVacia";
 
 
@@ -81,7 +81,7 @@ const SolicitudesActions = () => {
   return (
     <TopToolbar>
       <Button
-        label="Crear"
+        label=" Crear Solicitud"
         onClick={() => redirect("/solicitudes/create")}
       >
         <AddIcon />

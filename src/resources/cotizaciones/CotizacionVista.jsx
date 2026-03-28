@@ -283,7 +283,14 @@ const cargarCotizacion = async () => {
             </Box>
           </Grid>
         </Grid>
-
+            <Button
+              variant="contained"
+              color="success"
+              onClick={() => navigate(`/cotizaciones/${idCotizacion}/cronograma`)}
+              disabled={cotizacion?.estado === "APROBADA" || cotizacion?.estado === "RECHAZADA"}
+            >
+              APROBAR
+            </Button>
         <Typography variant="h5" fontWeight="bold" mb={2}>
           Filtros
         </Typography>
@@ -360,18 +367,10 @@ const cargarCotizacion = async () => {
               variant="contained"
               color="success"
               onClick={() =>
-                navigate(`/cotizacion-personalizada/formularios/${idCotizacion}`)
-              }
+                navigate(`/cotizacion-personalizada/formularios/${idCotizacion}`) }
+              disabled={cotizacion?.estado === "APROBADA" || cotizacion?.estado === "RECHAZADA"}   
             >
               ADICIONAR A COTIZACION
-            </Button>
-
-            <Button
-              variant="contained"
-              color="success"
-              onClick={() => navigate(`/cotizaciones/${idCotizacion}/cronograma`)}
-            >
-              GENERAR CRONOGRAMA
             </Button>
           </Grid>
         </Grid>

@@ -22,7 +22,6 @@ import SolicitudCreate from "../resources/solicitudes/SolicitudCreate";
 import SolicitudShow from "../resources/solicitudes/SolicitudShow";
 
 import CotizacionList from "../resources/cotizaciones/CotizacionList";
-import CotizacionShow from "../resources/cotizaciones/CotizacionShow";
 import CotizacionVista from "../resources/cotizaciones/CotizacionVista";
 
 import CronogramaList from "../resources/cronogramas/CronogramaList";
@@ -43,22 +42,13 @@ const App = () => {
       loginPage={LoginPage}
     >
       <CustomRoutes noLayout>
-        <Route path="/register" element={<Register />} />
-      </CustomRoutes>
-       <CustomRoutes>
-        <Route path="/cotizacion-base" element={<CotizacionBase />} />
-      </CustomRoutes>
+      <Route path="/register" element={<Register />} /> </CustomRoutes>
       <CustomRoutes>
+      <Route path="/cotizacion-base" element={<CotizacionBase />} />
       <Route path="/cotizaciones/:idCotizacion/vista" element={<CotizacionVista />} />
-      <Route path="/cotizacion-personalizada/formularios/:idCotizacion"
-      element={<FormulariosCotizacionPersonalizada />}   />
-      <Route
-      path="/cotizaciones-personalizadas/:idCotizacion/detalle"
-        element={<CotizacionPersonalizadaDetalle />} />
-      
-      <Route
-          path="/cotizaciones/:idCotizacion/cronograma"
-          element={<CronogramaCreate />}/>
+      <Route path="/cotizacion-personalizada/formularios/:idCotizacion" element={<FormulariosCotizacionPersonalizada />}   />
+      <Route path="/cotizaciones-personalizadas/:idCotizacion/detalle" element={<CotizacionPersonalizadaDetalle />} />     
+      <Route path="/cotizaciones/:idCotizacion/cronograma" element={<CronogramaCreate />}/>
     </CustomRoutes>
 
       {(permissions) => [

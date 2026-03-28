@@ -388,7 +388,7 @@ const FormObraBlanca = ({
 
       <Box sx={{ mt: 2 }}>
         <Typography variant="h6">
-          Total general: {totalGeneral}
+          Total Actividades: {totalGeneral}
         </Typography>
       </Box>
     </Box>
