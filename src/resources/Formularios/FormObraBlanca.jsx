@@ -25,6 +25,7 @@ const FormObraBlanca = ({
   actividadesCatalogo = [],
   value = [],
   onChange,
+  errors = [],
   titulo = "Formulario Mano de Obra / Obra Blanca",
 }) => {
   const [actividades, setActividades] = useState(
@@ -87,11 +88,20 @@ const FormObraBlanca = ({
     tipoCobro.toUpperCase().includes("METRO CUADRADO");
 
   const esTipoUnidad = (tipoCobro = "") =>
-    tipoCobro.toUpperCase().includes("UNIDAD");
+    tipoCobro.toUpperCase().includes("UNIDAD") ||
+    tipoCobro.toUpperCase().includes("OBJETO");
 
   const getErrorActividad = (item, index) => {
+    if (errors?.[index]?.idActividad) return true;
     if (!debeMostrarError(index, "idActividad")) return false;
     return !item.idActividad;
+  };
+
+  const getHelperActividad = (item, index) => {
+    if (errors?.[index]?.idActividad) return errors[index].idActividad;
+    return getErrorActividad(item, index)
+      ? "La actividad es obligatoria"
+      : " ";
   };
 
   const getErrorCantidad = (item, index) => {
@@ -106,18 +116,45 @@ const FormObraBlanca = ({
     return !esNumeroValido(item.medida);
   };
 
+  const getErrorSubtotal = (item, index) => {
+    if (errors?.[index]?.subtotal) return true;
+
+    const filaTieneAlgo =
+      item.idActividad ||
+      item.lugar?.trim() ||
+      item.cantidad !== "" ||
+      item.medida !== "" ||
+      item.descripcion?.trim() ||
+      Number(item.subtotal) > 0;
+
+    if (!filaTieneAlgo) return false;
+
+    return Number(item.subtotal) <= 0;
+  };
+
+  const getHelperSubtotal = (item, index) => {
+    if (errors?.[index]?.subtotal) return errors[index].subtotal;
+    return getErrorSubtotal(item, index)
+      ? "El subtotal es obligatorio y debe ser mayor a 0"
+      : " ";
+  };
+
   const actividadEsValida = (item) => {
     if (!item.idActividad) return false;
 
     if (esTipoMetro(item.tipoCobro)) {
-      return esNumeroValido(item.medida);
+      return esNumeroValido(item.medida) && Number(item.subtotal) > 0;
     }
 
     if (esTipoUnidad(item.tipoCobro)) {
-      return esNumeroValido(item.cantidad);
+      return esNumeroValido(item.cantidad) && Number(item.subtotal) > 0;
     }
 
-    return esNumeroValido(item.cantidad) && esNumeroValido(item.medida);
+    return (
+      esNumeroValido(item.cantidad) &&
+      esNumeroValido(item.medida) &&
+      Number(item.subtotal) > 0
+    );
   };
 
   const recalcularSubtotal = (actividadActualizada) => {
@@ -130,7 +167,7 @@ const FormObraBlanca = ({
 
     if (tipoCobro.includes("METRO CUADRADO")) {
       subtotal = medida * precioUnitario;
-    } else if (tipoCobro.includes("UNIDAD")) {
+    } else if (tipoCobro.includes("UNIDAD") || tipoCobro.includes("OBJETO")) {
       subtotal = cantidad * precioUnitario;
     } else {
       subtotal = cantidad * precioUnitario;
@@ -250,16 +287,11 @@ const FormObraBlanca = ({
                   onChange={(e) => handleSeleccionActividad(index, e.target.value)}
                   onBlur={() => marcarTouched(index, "idActividad")}
                   error={getErrorActividad(item, index)}
-                  helperText={
-                    getErrorActividad(item, index)
-                      ? "La actividad es obligatoria"
-                      : " "
-                  }
+                  helperText={getHelperActividad(item, index)}
                   InputLabelProps={{ shrink: true }}
                   SelectProps={{ displayEmpty: true }}
                   sx={{ minWidth: 280 }}
                 >
-
                   {catalogoNormalizado.map((act) => (
                     <MenuItem key={act.idActividad} value={act.idActividad}>
                       {act.nombreActividad}
@@ -361,6 +393,8 @@ const FormObraBlanca = ({
                   value={item.subtotal ?? 0}
                   InputProps={{ readOnly: true }}
                   InputLabelProps={{ shrink: true }}
+                  error={getErrorSubtotal(item, index)}
+                  helperText={getHelperSubtotal(item, index)}
                 />
               </Grid>
 

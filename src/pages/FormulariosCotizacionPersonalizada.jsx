@@ -29,6 +29,7 @@ const FormulariosCotizacionPersonalizada = () => {
   const [idSolicitud, setIdSolicitud] = useState(null);
   const [actividadesCatalogo, setActividadesCatalogo] = useState([]);
   const [idCotizacionPersonalizada, setIdCotizacionPersonalizada] = useState(null);
+
   const [obraBlanca, setObraBlanca] = useState([
     {
       idActividad: "",
@@ -41,6 +42,10 @@ const FormulariosCotizacionPersonalizada = () => {
       subtotal: 0,
     },
   ]);
+
+  // errores por fila para Obra Blanca
+  const [erroresObraBlanca, setErroresObraBlanca] = useState([{}]);
+
 
   const [carpinteria, setCarpinteria] = useState({
     tipoMueble: "",
@@ -194,36 +199,68 @@ const FormulariosCotizacionPersonalizada = () => {
     return Number.isNaN(n) ? null : n;
   };
 
-const crearCotizacionSiNoExiste = async () => {
-  if (idCotizacionPersonalizada) return idCotizacionPersonalizada;
-
-  const payload = {
-    idCotizacion: Number(idCotizacion),
-    idSolicitud: Number(idSolicitud),
-    nombreProyecto: nombreProyecto,
-    observacionGeneral: "Adición de actividades personalizadas",
-  };
-
-  const { json } = await httpClient(`${apiUrl}/api/cotizaciones-personalizadas`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-    headers: new Headers({
-      "Content-Type": "application/json",
-    }),
-  });
-
-  const idPersonalizada =
-    json?.idCotizacionPersonalizada ||
-    json?.id ||
-    null;
-
-  if (!idPersonalizada) {
-    throw new Error("No se recibió idCotizacionPersonalizada al crear la cabecera");
+  // validar actividades de obra blanca
+const validarObraBlanca = () => {
+  if (!serviciosSeleccionados.includes(1)) {
+    setErroresObraBlanca([]);
+    return true;
   }
 
-  setIdCotizacionPersonalizada(idPersonalizada);
-  return idPersonalizada;
+  if (!obraBlanca || obraBlanca.length === 0) {
+    setErroresObraBlanca([{ idActividad: "Debe adicionar al menos una actividad" }]);
+    return false;
+  }
+
+  const errores = obraBlanca.map((item) => {
+    const error = {};
+
+    if (!item.idActividad) {
+      error.idActividad = "La actividad es obligatoria";
+    }
+
+    if (!item.subtotal || Number(item.subtotal) <= 0) {
+      error.subtotal = "El subtotal es obligatorio y debe ser mayor a 0";
+    }
+
+    return error;
+  });
+
+  setErroresObraBlanca(errores);
+
+  const hayErrores = errores.some((e) => Object.keys(e).length > 0);
+  return !hayErrores;
 };
+
+  const crearCotizacionSiNoExiste = async () => {
+    if (idCotizacionPersonalizada) return idCotizacionPersonalizada;
+
+    const payload = {
+      idCotizacion: Number(idCotizacion),
+      idSolicitud: Number(idSolicitud),
+      nombreProyecto: nombreProyecto,
+      observacionGeneral: "Adición de actividades personalizadas",
+    };
+
+    const { json } = await httpClient(`${apiUrl}/api/cotizaciones-personalizadas`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: new Headers({
+        "Content-Type": "application/json",
+      }),
+    });
+
+    const idPersonalizada =
+      json?.idCotizacionPersonalizada ||
+      json?.id ||
+      null;
+
+    if (!idPersonalizada) {
+      throw new Error("No se recibió idCotizacionPersonalizada al crear la cabecera");
+    }
+
+    setIdCotizacionPersonalizada(idPersonalizada);
+    return idPersonalizada;
+  };
 
 const guardarObraBlanca = async () => {
   if (!serviciosSeleccionados.includes(1)) return;
@@ -236,12 +273,7 @@ const guardarObraBlanca = async () => {
     tipoCobro.toUpperCase().includes("OBJETO");
 
   const actividadesValidas = obraBlanca.filter(
-    (item) =>
-      item.idActividad ||
-      item.lugar?.trim() ||
-      item.cantidad !== "" ||
-      item.medida !== "" ||
-      item.descripcion?.trim()
+    (item) => item.idActividad && Number(item.subtotal) > 0
   );
 
   for (const item of actividadesValidas) {
@@ -346,69 +378,89 @@ const guardarObraBlanca = async () => {
     });
   };
 
-const guardarTodosLosFormularios = async () => {
-  await guardarObraBlanca();
-  await guardarCarpinteria(Number(idCotizacion));
-  await guardarVidrio(Number(idCotizacion));
-  await guardarMeson(Number(idCotizacion));
-};
+  const guardarTodosLosFormularios = async () => {
+    await guardarObraBlanca();
+    await guardarCarpinteria(Number(idCotizacion));
+    await guardarVidrio(Number(idCotizacion));
+    await guardarMeson(Number(idCotizacion));
+  };
 
-const recalcularCotizacion = async (idPersonalizada) => {
-  await httpClient(
-    `${apiUrl}/api/cotizaciones-personalizadas/${idPersonalizada}/recalcular`,
-    {
-      method: "PUT",
-      headers: new Headers({
-        "Content-Type": "application/json",
-      }),
+  const recalcularCotizacion = async (idPersonalizada) => {
+    await httpClient(
+      `${apiUrl}/api/cotizaciones-personalizadas/${idPersonalizada}/recalcular`,
+      {
+        method: "PUT",
+        headers: new Headers({
+          "Content-Type": "application/json",
+        }),
+      }
+    );
+  };
+
+  const handleGuardarTodo = async () => {
+    const esValidoObraBlanca = validarObraBlanca();
+
+    if (!esValidoObraBlanca) {
+      notify(
+        "Debes completar los campos obligatorios de las actividades: Actividad y Subtotal",
+        { type: "warning" }
+      );
+      return;
     }
-  );
-};
 
-const handleGuardarTodo = async () => {
-  try {
-    setGuardando(true);
+    try {
+      setGuardando(true);
 
-    const idPersonalizada = await crearCotizacionSiNoExiste();
-    await guardarTodosLosFormularios();
-    await recalcularCotizacion(idPersonalizada);
+      const idPersonalizada = await crearCotizacionSiNoExiste();
+      await guardarTodosLosFormularios();
+      await recalcularCotizacion(idPersonalizada);
 
-    notify("Formularios guardados correctamente", { type: "success" });
-    navigate(`/cotizaciones/${idCotizacion}/vista`);
-  } catch (error) {
-    console.error(error);
-    notify(
-      error?.body?.message || error?.message || "Error al guardar los formularios",
-      { type: "error" }
-    );
-  } finally {
-    setGuardando(false);
-  }
-};
+      notify("Formularios guardados correctamente", { type: "success" });
+      navigate(`/cotizaciones/${idCotizacion}/vista`);
+    } catch (error) {
+      console.error(error);
+      notify(
+        error?.body?.message || error?.message || "Error al guardar los formularios",
+        { type: "error" }
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
 
-const handleGenerarYVer = async () => {
-  try {
-    setGuardando(true);
+  const handleGenerarYVer = async () => {
+    const esValidoObraBlanca = validarObraBlanca();
 
-    const idPersonalizada = await crearCotizacionSiNoExiste();
-    await guardarTodosLosFormularios();
-    await recalcularCotizacion(idPersonalizada);
+    if (!esValidoObraBlanca) {
+      notify(
+        "Debes completar los campos obligatorios de las actividades: Actividad y Subtotal",
+        { type: "warning" }
+      );
+      return;
+    }
 
-    notify("Cotización personalizada generada correctamente", {
-      type: "success",
-    });
+    try {
+      setGuardando(true);
 
-    navigate(`/cotizaciones/${idCotizacion}/vista`);
-  } catch (error) {
-    console.error(error);
-    notify(
-      error?.body?.message || error?.message || "Error al generar la cotización",
-      { type: "error" }
-    );
-  } finally {
-    setGuardando(false);
-  }
-};
+      const idPersonalizada = await crearCotizacionSiNoExiste();
+      await guardarTodosLosFormularios();
+      await recalcularCotizacion(idPersonalizada);
+
+      notify("Cotización personalizada generada correctamente", {
+        type: "success",
+      });
+
+      navigate(`/cotizaciones/${idCotizacion}/vista`);
+    } catch (error) {
+      console.error(error);
+      notify(
+        error?.body?.message || error?.message || "Error al generar la cotización",
+        { type: "error" }
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   const nombresServicios = serviciosSeleccionados
     .map((id) => {
@@ -464,6 +516,7 @@ const handleGenerarYVer = async () => {
               actividadesCatalogo={actividadesObraBlanca}
               value={obraBlanca}
               onChange={setObraBlanca}
+              errors={erroresObraBlanca}
             />
           )}
 
