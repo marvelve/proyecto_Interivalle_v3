@@ -8,7 +8,13 @@ import {
   TextField,
   MenuItem,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
+
+import { useNotify } from "react-admin";
 import { useNavigate, useParams } from "react-router-dom";
 import httpClient, { apiUrl } from "../../app/httpClient";
 
@@ -66,6 +72,11 @@ const CotizacionVista = () => {
 
   const [filtroSemana, setFiltroSemana] = useState("");
   const [filtroActividad, setFiltroActividad] = useState("");
+
+  const [openAprobar, setOpenAprobar] = useState(false);
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [aprobando, setAprobando] = useState(false);
+  const notify = useNotify();
 
   useEffect(() => {
     cargarCotizacion();
@@ -125,6 +136,47 @@ const cargarCotizacion = async () => {
     }
   } finally {
     setLoading(false);
+  }
+};
+
+const handleAprobar = async () => {
+  try {
+    if (!fechaInicio) {
+      notify("Debes seleccionar la fecha de inicio", { type: "warning" });
+      return;
+    }
+
+    setAprobando(true);
+
+    const token = localStorage.getItem("token");
+
+    await fetch(`${apiUrl}/api/cliente/cotizaciones/${idCotizacion}/aprobar`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        mensaje: "Aprobada por el cliente",
+        fechaInicio: fechaInicio,
+      }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "No se pudo aprobar la cotización");
+      }
+      return res.json();
+    });
+
+    notify("Cotización aprobada correctamente", { type: "success" });
+    setOpenAprobar(false);
+
+    navigate(`/cronogramas/cotizacion/${idCotizacion}`);
+  } catch (error) {
+    console.error(error);
+    notify(error.message || "Error al aprobar la cotización", { type: "error" });
+  } finally {
+    setAprobando(false);
   }
 };
 
@@ -286,7 +338,7 @@ const cargarCotizacion = async () => {
             <Button
               variant="contained"
               color="success"
-              onClick={() => navigate(`/cotizaciones/${idCotizacion}/cronograma`)}
+              onClick={() => setOpenAprobar(true)}
               disabled={cotizacion?.estado === "APROBADA" || cotizacion?.estado === "RECHAZADA"}
             >
               APROBAR
@@ -541,6 +593,35 @@ const cargarCotizacion = async () => {
             </Typography>
           </Paper>
         </Box>
+        <Dialog open={openAprobar} onClose={() => setOpenAprobar(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Aprobar cotización</DialogTitle>
+
+          <DialogContent>
+            <TextField
+              label="Fecha de inicio"
+              type="date"
+              fullWidth
+              margin="normal"
+              InputLabelProps={{ shrink: true }}
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+            />
+          </DialogContent>
+
+          <DialogActions>
+            <Button onClick={() => setOpenAprobar(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              onClick={handleAprobar}
+              disabled={aprobando}
+            >
+              {aprobando ? "Aprobando..." : "Confirmar"}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Paper>
     </Box>
   );

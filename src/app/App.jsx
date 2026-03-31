@@ -27,6 +27,7 @@ import CotizacionVista from "../resources/cotizaciones/CotizacionVista";
 import CronogramaList from "../resources/cronogramas/CronogramaList";
 import CronogramaCreate from "../resources/cronogramas/CronogramaCreate";
 import CronogramaEdit from "../resources/cronogramas/CronogramaEdit";
+import CronogramaVista from "../resources/cronogramas/CronogramaVista";
 
 import AvanceList from "../resources/avances/AvanceList";
 import AvanceCreate from "../resources/avances/AvanceCreate";
@@ -49,6 +50,7 @@ const App = () => {
       <Route path="/cotizacion-personalizada/formularios/:idCotizacion" element={<FormulariosCotizacionPersonalizada />}   />
       <Route path="/cotizaciones-personalizadas/:idCotizacion/detalle" element={<CotizacionPersonalizadaDetalle />} />     
       <Route path="/cotizaciones/:idCotizacion/cronograma" element={<CronogramaCreate />}/>
+      <Route path="/cronogramas/cotizacion/:idCotizacion" element={<CronogramaVista />} />
     </CustomRoutes>
 
       {(permissions) => [
