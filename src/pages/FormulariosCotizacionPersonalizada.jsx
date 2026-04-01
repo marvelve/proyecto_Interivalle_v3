@@ -15,6 +15,19 @@ import FormCarpinteria from "../resources/Formularios/FormCarpinteria";
 import FormVidrio from "../resources/Formularios/FormVidrio";
 import FormMezon from "../resources/Formularios/FormMezon";
 
+const crearActividadVacia = () => ({
+  idObraBlanca: null,
+  idActividad: "",
+  lugar: "",
+  cantidad: "",
+  medida: "",
+  tipoCobro: "",
+  precioUnitario: "",
+  descripcion: "",
+  subtotal: 0,
+  yaGuardada: false,
+});
+
 const FormulariosCotizacionPersonalizada = () => {
   const { idCotizacion } = useParams();
   const navigate = useNavigate();
@@ -28,24 +41,11 @@ const FormulariosCotizacionPersonalizada = () => {
   const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]);
   const [idSolicitud, setIdSolicitud] = useState(null);
   const [actividadesCatalogo, setActividadesCatalogo] = useState([]);
-  const [idCotizacionPersonalizada, setIdCotizacionPersonalizada] = useState(null);
+  const [idCotizacionPersonalizada, setIdCotizacionPersonalizada] =
+    useState(null);
 
-  const [obraBlanca, setObraBlanca] = useState([
-    {
-      idActividad: "",
-      lugar: "",
-      cantidad: "",
-      medida: "",
-      tipoCobro: "",
-      precioUnitario: "",
-      descripcion: "",
-      subtotal: 0,
-    },
-  ]);
-
-  // errores por fila para Obra Blanca
+  const [obraBlanca, setObraBlanca] = useState([crearActividadVacia()]);
   const [erroresObraBlanca, setErroresObraBlanca] = useState([{}]);
-
 
   const [carpinteria, setCarpinteria] = useState({
     tipoMueble: "",
@@ -91,7 +91,9 @@ const FormulariosCotizacionPersonalizada = () => {
   const actividadesObraBlanca = useMemo(() => {
     return actividadesCatalogo.filter((item) => {
       const idServicio = item?.servicios?.idServicio;
-      const nombreServicio = (item?.servicios?.nombreServicio || "").toUpperCase();
+      const nombreServicio = (
+        item?.servicios?.nombreServicio || ""
+      ).toUpperCase();
       const estado = item?.estado;
 
       return (
@@ -127,10 +129,12 @@ const FormulariosCotizacionPersonalizada = () => {
           }
         );
 
-        console.log("Catálogo actividades:", catalogoJson);
         setActividadesCatalogo(Array.isArray(catalogoJson) ? catalogoJson : []);
       } catch (errorCatalogo) {
-        console.warn("No fue posible cargar el catálogo de actividades:", errorCatalogo);
+        console.warn(
+          "No fue posible cargar el catálogo de actividades:",
+          errorCatalogo
+        );
       }
 
       try {
@@ -161,7 +165,10 @@ const FormulariosCotizacionPersonalizada = () => {
 
             setSolicitud(solicitudJson);
 
-            if ((!serviciosLS || serviciosLS.length === 0) && solicitudJson?.servicios) {
+            if (
+              (!serviciosLS || serviciosLS.length === 0) &&
+              solicitudJson?.servicios
+            ) {
               setServiciosSeleccionados(solicitudJson.servicios);
             }
           } catch (errorSolicitud) {
@@ -181,6 +188,8 @@ const FormulariosCotizacionPersonalizada = () => {
         ) {
           setServiciosSeleccionados(serviciosDesdeCotizacion);
         }
+
+        await cargarObraBlancaExistente();
       } catch (errorCotizacion) {
         console.error("Error cargando cotización:", errorCotizacion);
         notify("No fue posible cargar la cotización", { type: "error" });
@@ -199,37 +208,73 @@ const FormulariosCotizacionPersonalizada = () => {
     return Number.isNaN(n) ? null : n;
   };
 
-  // validar actividades de obra blanca
-const validarObraBlanca = () => {
-  if (!serviciosSeleccionados.includes(1)) {
-    setErroresObraBlanca([]);
-    return true;
-  }
+  const cargarObraBlancaExistente = async () => {
+    try {
+      const { json } = await httpClient(
+        `${apiUrl}/api/obra-blanca/cotizacion/${idCotizacion}`,
+        { method: "GET" }
+      );
 
-  if (!obraBlanca || obraBlanca.length === 0) {
-    setErroresObraBlanca([{ idActividad: "Debe adicionar al menos una actividad" }]);
-    return false;
-  }
+      if (Array.isArray(json) && json.length > 0) {
+        const actividadesMapeadas = json.map((item) => ({
+          idObraBlanca: item.idObraBlanca || null,
+          idActividad: item.idActividad || "",
+          lugar: item.lugar || "",
+          cantidad: item.cantidad ?? "",
+          medida: item.medida ?? "",
+          tipoCobro: item.tipoCobro || item.unidad || "",
+          precioUnitario: item.precioUnitario ?? "",
+          descripcion: item.descripcion || "",
+          subtotal: item.subtotal ?? 0,
+          yaGuardada: true,
+        }));
 
-  const errores = obraBlanca.map((item) => {
-    const error = {};
+        setObraBlanca(actividadesMapeadas);
+      } else {
+        setObraBlanca([crearActividadVacia()]);
+      }
+    } catch (error) {
+      console.warn("No fue posible cargar actividades adicionales:", error);
+      setObraBlanca([crearActividadVacia()]);
+    }
+  };
 
-    if (!item.idActividad) {
-      error.idActividad = "La actividad es obligatoria";
+  const validarObraBlanca = () => {
+    if (!serviciosSeleccionados.includes(1)) {
+      setErroresObraBlanca([]);
+      return true;
     }
 
-    if (!item.subtotal || Number(item.subtotal) <= 0) {
-      error.subtotal = "El subtotal es obligatorio y debe ser mayor a 0";
+    if (!obraBlanca || obraBlanca.length === 0) {
+      setErroresObraBlanca([
+        { idActividad: "Debe adicionar al menos una actividad" },
+      ]);
+      return false;
     }
 
-    return error;
-  });
+    const errores = obraBlanca.map((item) => {
+      const error = {};
 
-  setErroresObraBlanca(errores);
+      if (!item.idActividad) {
+        error.idActividad = "La actividad es obligatoria";
+      }
 
-  const hayErrores = errores.some((e) => Object.keys(e).length > 0);
-  return !hayErrores;
-};
+      if (!item.lugar || !item.lugar.trim()) {
+        error.lugar = "El lugar es obligatorio";
+      }
+
+      if (!item.subtotal || Number(item.subtotal) <= 0) {
+        error.subtotal = "El subtotal es obligatorio y debe ser mayor a 0";
+      }
+
+      return error;
+    });
+
+    setErroresObraBlanca(errores);
+
+    const hayErrores = errores.some((e) => Object.keys(e).length > 0);
+    return !hayErrores;
+  };
 
   const crearCotizacionSiNoExiste = async () => {
     if (idCotizacionPersonalizada) return idCotizacionPersonalizada;
@@ -250,63 +295,91 @@ const validarObraBlanca = () => {
     });
 
     const idPersonalizada =
-      json?.idCotizacionPersonalizada ||
-      json?.id ||
-      null;
+      json?.idCotizacionPersonalizada || json?.id || null;
 
     if (!idPersonalizada) {
-      throw new Error("No se recibió idCotizacionPersonalizada al crear la cabecera");
+      throw new Error(
+        "No se recibió idCotizacionPersonalizada al crear la cabecera"
+      );
     }
 
     setIdCotizacionPersonalizada(idPersonalizada);
     return idPersonalizada;
   };
 
-const guardarObraBlanca = async () => {
-  if (!serviciosSeleccionados.includes(1)) return;
+  const guardarObraBlanca = async () => {
+    if (!serviciosSeleccionados.includes(1)) return;
 
-  const esTipoMetro = (tipoCobro = "") =>
-    tipoCobro.toUpperCase().includes("METRO CUADRADO");
+    const esTipoMetro = (tipoCobro = "") =>
+      tipoCobro.toUpperCase().includes("METRO CUADRADO");
 
-  const esTipoUnidad = (tipoCobro = "") =>
-    tipoCobro.toUpperCase().includes("UNIDAD") ||
-    tipoCobro.toUpperCase().includes("OBJETO");
+    const esTipoUnidad = (tipoCobro = "") =>
+      tipoCobro.toUpperCase().includes("UNIDAD") ||
+      tipoCobro.toUpperCase().includes("OBJETO");
 
-  const actividadesValidas = obraBlanca.filter(
-    (item) => item.idActividad && Number(item.subtotal) > 0
-  );
-
-  for (const item of actividadesValidas) {
-    const actividadSeleccionada = actividadesObraBlanca.find(
-      (act) => String(act.idActividad) === String(item.idActividad)
+    const actividadesNuevas = obraBlanca.filter(
+      (item) =>
+        !item.yaGuardada &&
+        item.idActividad &&
+        item.lugar?.trim() &&
+        Number(item.subtotal) > 0
     );
 
-    const payload = {
-      idCotizacion: Number(idCotizacion),
-      idActividad: item.idActividad ? Number(item.idActividad) : null,
-      actividad: actividadSeleccionada?.nombreActividad || "",
-      lugar: item.lugar || "",
-      unidad: item.tipoCobro || null,
-      cantidad: esTipoMetro(item.tipoCobro)
-        ? null
-        : toNumberOrNull(item.cantidad),
-      semanas: null,
-      precioUnitario: toNumberOrNull(item.precioUnitario),
-      medida: esTipoUnidad(item.tipoCobro)
-        ? null
-        : toNumberOrNull(item.medida),
-      descripcion: item.descripcion || "",
-    };
+    for (const item of actividadesNuevas) {
+      const actividadSeleccionada = actividadesObraBlanca.find(
+        (act) => String(act.idActividad) === String(item.idActividad)
+      );
 
-    await httpClient(`${apiUrl}/api/obra-blanca`, {
-      method: "POST",
-      body: JSON.stringify(payload),
-      headers: new Headers({
-        "Content-Type": "application/json",
-      }),
-    });
-  }
-};
+      const payload = {
+        idCotizacion: Number(idCotizacion),
+        idActividad: item.idActividad ? Number(item.idActividad) : null,
+        actividad: actividadSeleccionada?.nombreActividad || "",
+        lugar: item.lugar.trim(),
+        unidad: item.tipoCobro || null,
+        cantidad: esTipoMetro(item.tipoCobro)
+          ? null
+          : toNumberOrNull(item.cantidad),
+        semanas: null,
+        precioUnitario: toNumberOrNull(item.precioUnitario),
+        medida: esTipoUnidad(item.tipoCobro)
+          ? null
+          : toNumberOrNull(item.medida),
+        descripcion: item.descripcion || "",
+      };
+
+      try {
+        const { json } = await httpClient(`${apiUrl}/api/obra-blanca`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+          headers: new Headers({
+            "Content-Type": "application/json",
+          }),
+        });
+
+        item.idObraBlanca = json?.idObraBlanca || null;
+        item.yaGuardada = true;
+      } catch (error) {
+        const mensaje =
+          error?.body?.message ||
+          error?.message ||
+          "Error al guardar actividad adicional";
+
+        if (
+          mensaje.toLowerCase().includes("ya está en la cotización") ||
+          mensaje.toLowerCase().includes("mismo lugar")
+        ) {
+          notify(
+            "Esta actividad ya está en la cotización para ese mismo lugar",
+            { type: "warning" }
+          );
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    setObraBlanca([...obraBlanca]);
+  };
 
   const guardarCarpinteria = async (cotizacionId) => {
     if (!serviciosSeleccionados.includes(2)) return;
@@ -402,7 +475,7 @@ const guardarObraBlanca = async () => {
 
     if (!esValidoObraBlanca) {
       notify(
-        "Debes completar los campos obligatorios de las actividades: Actividad y Subtotal",
+        "Debes completar los campos obligatorios de las actividades: Actividad, Lugar y Subtotal",
         { type: "warning" }
       );
       return;
@@ -420,7 +493,9 @@ const guardarObraBlanca = async () => {
     } catch (error) {
       console.error(error);
       notify(
-        error?.body?.message || error?.message || "Error al guardar los formularios",
+        error?.body?.message ||
+          error?.message ||
+          "Error al guardar los formularios",
         { type: "error" }
       );
     } finally {
@@ -433,7 +508,7 @@ const guardarObraBlanca = async () => {
 
     if (!esValidoObraBlanca) {
       notify(
-        "Debes completar los campos obligatorios de las actividades: Actividad y Subtotal",
+        "Debes completar los campos obligatorios de las actividades: Actividad, Lugar y Subtotal",
         { type: "warning" }
       );
       return;
@@ -454,7 +529,9 @@ const guardarObraBlanca = async () => {
     } catch (error) {
       console.error(error);
       notify(
-        error?.body?.message || error?.message || "Error al generar la cotización",
+        error?.body?.message ||
+          error?.message ||
+          "Error al generar la cotización",
         { type: "error" }
       );
     } finally {
@@ -476,7 +553,7 @@ const guardarObraBlanca = async () => {
   if (loading) {
     return (
       <Box p={3}>
-        <Typography>Cargando formularios...</Typography>
+        <Typography>Cargando formularios.</Typography>
       </Box>
     );
   }
@@ -507,7 +584,8 @@ const guardarObraBlanca = async () => {
             </Typography>
 
             <Typography>
-              <strong>Servicios seleccionados:</strong> {nombresServicios || "Ninguno"}
+              <strong>Servicios seleccionados:</strong>{" "}
+              {nombresServicios || "Ninguno"}
             </Typography>
           </Box>
 
