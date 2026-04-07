@@ -27,6 +27,18 @@ const tiposSolicitud = [
   { value: "VISITA_TECNICA", label: "Visita Técnica" }
 ];
 
+const horariosVisita = [
+  { value: "08:00", label: "08:00 AM" },
+  { value: "09:00", label: "09:00 AM" },
+  { value: "10:00", label: "10:00 AM" },
+  { value: "11:00", label: "11:00 AM" },
+  { value: "12:00", label: "12:00 PM" },
+  { value: "14:00", label: "02:00 PM" },
+  { value: "15:00", label: "03:00 PM" },
+  { value: "16:00", label: "04:00 PM" },
+  { value: "17:00", label: "05:00 PM" }
+];
+
 const SolicitudCreate = () => {
   const navigate = useNavigate();
   const notify = useNotify();
@@ -35,26 +47,61 @@ const SolicitudCreate = () => {
 
   const [formData, setFormData] = React.useState({
     tipoSolicitud: "COTIZACION_BASE",
-    nombreProyecto: ""
+    nombreProyecto: "",
+    fechaVisita: "",
+    horaVisita: "08:00",
+    direccionVisita: "",
+    celularCliente: ""
   });
 
   const [serviciosSeleccionados, setServiciosSeleccionados] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [idSolicitud, setIdSolicitud] = React.useState(null);
 
+  const esVisitaTecnica = formData.tipoSolicitud === "VISITA_TECNICA";
+
   React.useEffect(() => {
     localStorage.removeItem("idSolicitud");
     localStorage.removeItem("serviciosSeleccionados");
     localStorage.removeItem("tipoSolicitud");
+    localStorage.removeItem("nombreProyecto");
   }, []);
+
+  const obtenerFechaMinima = () => {
+    const hoy = new Date();
+    hoy.setDate(hoy.getDate() + 1); // solo fechas futuras, desde mañana
+    return hoy.toISOString().split("T")[0];
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setFormData({
-      ...formData,
-      [name]: name === "nombreProyecto" ? value.toUpperCase() : value
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        name === "nombreProyecto"
+          ? value.toUpperCase()
+          : name === "celularCliente"
+          ? value.replace(/\D/g, "")
+          : value
+    }));
+  };
+
+  const handleTipoSolicitudChange = (e) => {
+    const value = e.target.value;
+
+    setFormData((prev) => ({
+      ...prev,
+      tipoSolicitud: value,
+      fechaVisita: value === "VISITA_TECNICA" ? prev.fechaVisita : "",
+      horaVisita: value === "VISITA_TECNICA" ? prev.horaVisita : "",
+      direccionVisita: value === "VISITA_TECNICA" ? prev.direccionVisita : "",
+      celularCliente: value === "VISITA_TECNICA" ? prev.celularCliente : ""
+    }));
+
+    if (value === "VISITA_TECNICA") {
+      setServiciosSeleccionados([]);
+    }
   };
 
   const handleServicioChange = (id) => {
@@ -63,6 +110,31 @@ const SolicitudCreate = () => {
     } else {
       setServiciosSeleccionados([...serviciosSeleccionados, id]);
     }
+  };
+
+  const esFechaFutura = (fecha) => {
+    if (!fecha) return false;
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    const fechaIngresada = new Date(fecha + "T00:00:00");
+    return fechaIngresada > hoy;
+  };
+
+  const validarHoraVisita = (hora) => {
+    const horasPermitidas = [
+      "08:00",
+      "09:00",
+      "10:00",
+      "11:00",
+      "12:00",
+      "14:00",
+      "15:00",
+      "16:00",
+      "17:00"
+    ];
+    return horasPermitidas.includes(hora);
   };
 
   const validarFormulario = () => {
@@ -76,12 +148,52 @@ const SolicitudCreate = () => {
       return false;
     }
 
-    if (
-      (formData.tipoSolicitud === "COTIZACION_BASE") &&
-      serviciosSeleccionados.length === 0
-    ) {
-      notify("Seleccione al menos un servicio", { type: "warning" });
-      return false;
+    if (formData.tipoSolicitud === "COTIZACION_BASE") {
+      if (serviciosSeleccionados.length === 0) {
+        notify("Seleccione al menos un servicio", { type: "warning" });
+        return false;
+      }
+    }
+
+    if (formData.tipoSolicitud === "VISITA_TECNICA") {
+      if (!formData.fechaVisita) {
+        notify("Ingrese la fecha de la visita técnica", { type: "warning" });
+        return false;
+      }
+
+      if (!esFechaFutura(formData.fechaVisita)) {
+        notify("La fecha de visita debe ser futura", { type: "warning" });
+        return false;
+      }
+
+      if (!formData.horaVisita) {
+        notify("Seleccione la hora de la visita técnica", { type: "warning" });
+        return false;
+      }
+
+      if (!validarHoraVisita(formData.horaVisita)) {
+        notify("La hora debe estar entre 8 a 12 M o 2 a 5 PM", {
+          type: "warning"
+        });
+        return false;
+      }
+
+      if (!formData.direccionVisita || !formData.direccionVisita.trim()) {
+        notify("Ingrese la dirección del proyecto", { type: "warning" });
+        return false;
+      }
+
+      if (!formData.celularCliente || !formData.celularCliente.trim()) {
+        notify("Ingrese el número celular del cliente", { type: "warning" });
+        return false;
+      }
+
+      if (formData.celularCliente.length < 10) {
+        notify("El número celular debe tener al menos 10 dígitos", {
+          type: "warning"
+        });
+        return false;
+      }
     }
 
     return true;
@@ -92,7 +204,11 @@ const SolicitudCreate = () => {
       correoUsuario,
       tipoSolicitud: formData.tipoSolicitud,
       nombreProyecto: formData.nombreProyecto.trim(),
-      servicios: serviciosSeleccionados
+      servicios: esVisitaTecnica ? [] : serviciosSeleccionados,
+      fechaVisita: esVisitaTecnica ? formData.fechaVisita : null,
+      horaVisita: esVisitaTecnica ? formData.horaVisita : null,
+      direccionVisita: esVisitaTecnica ? formData.direccionVisita.trim() : null,
+      celularCliente: esVisitaTecnica ? formData.celularCliente.trim() : null
     };
   };
 
@@ -104,9 +220,16 @@ const SolicitudCreate = () => {
     );
     localStorage.setItem("tipoSolicitud", formData.tipoSolicitud);
     localStorage.setItem("nombreProyecto", formData.nombreProyecto.trim());
+
+    if (esVisitaTecnica) {
+      localStorage.setItem("fechaVisita", formData.fechaVisita);
+      localStorage.setItem("horaVisita", formData.horaVisita);
+      localStorage.setItem("direccionVisita", formData.direccionVisita);
+      localStorage.setItem("celularCliente", formData.celularCliente);
+    }
   };
 
-  const redirigirSegunTipo = (solicitudId) => {
+  const redirigirSegunTipo = () => {
     if (formData.tipoSolicitud === "COTIZACION_BASE") {
       navigate("/cotizacion-base");
     } else {
@@ -148,7 +271,6 @@ const SolicitudCreate = () => {
       guardarEnLocalStorage(json.idSolicitud);
 
       notify("Solicitud guardada en estado PENDIENTE", { type: "success" });
-
       navigate("/solicitudes");
     } catch (error) {
       console.error(error);
@@ -175,6 +297,55 @@ const SolicitudCreate = () => {
       setIdSolicitud(solicitudIdNueva);
       guardarEnLocalStorage(solicitudIdNueva);
 
+      if (formData.tipoSolicitud === "COTIZACION_BASE") {
+        const { json: jsonGenerada } = await httpClient(
+          `${apiUrl}/api/solicitudes/${solicitudIdNueva}/generar`,
+          {
+            method: "PUT",
+            headers: new Headers({
+              "Content-Type": "application/json"
+            })
+          }
+        );
+
+        console.log("Solicitud generada:", jsonGenerada);
+
+        notify("Cotización creada correctamente. Estado: GENERADA", {
+          type: "success"
+        });
+      } else {
+        notify("Visita técnica creada correctamente", {
+          type: "success"
+        });
+      }
+
+      redirigirSegunTipo();
+    } catch (error) {
+      console.error(error);
+      notify(
+        error?.body?.message ||
+          error?.message ||
+          "Error al crear la Solicitud",
+        { type: "error" }
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProcesarSolicitud = async () => {
+  if (!validarFormulario()) return;
+
+  try {
+    setLoading(true);
+
+    const json = await crearNuevaSolicitud();
+    const solicitudIdNueva = json.idSolicitud;
+
+    setIdSolicitud(solicitudIdNueva);
+    guardarEnLocalStorage(solicitudIdNueva);
+
+    if (formData.tipoSolicitud === "COTIZACION_BASE") {
       const { json: jsonGenerada } = await httpClient(
         `${apiUrl}/api/solicitudes/${solicitudIdNueva}/generar`,
         {
@@ -191,19 +362,26 @@ const SolicitudCreate = () => {
         type: "success"
       });
 
-      redirigirSegunTipo(solicitudIdNueva);
-    } catch (error) {
-      console.error(error);
-      notify(
-        error?.body?.message ||
-          error?.message ||
-          "Error al crear la Solicitud",
-        { type: "error" }
-      );
-    } finally {
-      setLoading(false);
+      navigate("/cotizacion-base");
+    } else {
+      notify("Visita técnica creada correctamente", {
+        type: "success"
+      });
+
+      navigate("/solicitudes");
     }
-  };
+  } catch (error) {
+    console.error(error);
+    notify(
+      error?.body?.message ||
+        error?.message ||
+        "Error al procesar la solicitud",
+      { type: "error" }
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <Box p={3}>
@@ -222,7 +400,7 @@ const SolicitudCreate = () => {
                   label="Tipo de Solicitud"
                   name="tipoSolicitud"
                   value={formData.tipoSolicitud}
-                  onChange={handleChange}
+                  onChange={handleTipoSolicitudChange}
                 >
                   {tiposSolicitud.map((tipo) => (
                     <MenuItem key={tipo.value} value={tipo.value}>
@@ -243,25 +421,91 @@ const SolicitudCreate = () => {
               </Grid>
             </Grid>
 
-            <Typography variant="h6" mb={1}>
-              Seleccione los servicios a cotizar
-            </Typography>
+            {!esVisitaTecnica && (
+              <>
+                <Typography variant="h6" mb={1}>
+                  Seleccione los servicios a cotizar
+                </Typography>
 
-            <Grid container>
-              {serviciosDisponibles.map((servicio) => (
-                <Grid item xs={12} md={6} key={servicio.id}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={serviciosSeleccionados.includes(servicio.id)}
-                        onChange={() => handleServicioChange(servicio.id)}
+                <Grid container>
+                  {serviciosDisponibles.map((servicio) => (
+                    <Grid item xs={12} md={6} key={servicio.id}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={serviciosSeleccionados.includes(servicio.id)}
+                            onChange={() => handleServicioChange(servicio.id)}
+                          />
+                        }
+                        label={servicio.nombre}
                       />
-                    }
-                    label={servicio.nombre}
-                  />
+                    </Grid>
+                  ))}
                 </Grid>
-              ))}
-            </Grid>
+              </>
+            )}
+
+            {esVisitaTecnica && (
+              <>
+                <Typography variant="h6" mb={2}>
+                  Datos de la Visita Técnica
+                </Typography>
+
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      type="date"
+                      label="Fecha de Visita"
+                      name="fechaVisita"
+                      value={formData.fechaVisita}
+                      onChange={handleChange}
+                      InputLabelProps={{ shrink: true }}
+                      inputProps={{ min: obtenerFechaMinima() }}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      select
+                      fullWidth
+                      type="datetime-local"
+                      label="Hora de Visita"
+                      name="horaVisita"
+                      value={formData.horaVisita}
+                      onChange={handleChange}
+                    >
+                      {horariosVisita.map((hora) => (
+                        <MenuItem key={hora.value} value={hora.value}>
+                          {hora.label}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Dirección del Proyecto"
+                      name="direccionVisita"
+                      value={formData.direccionVisita}
+                      onChange={handleChange}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Número Celular del Cliente"
+                      name="celularCliente"
+                      value={formData.celularCliente}
+                      onChange={handleChange}
+                      inputProps={{ maxLength: 10 }}
+                    />
+                  </Grid>
+                </Grid>
+              </>
+            )}
 
             <Box display="flex" justifyContent="flex-end" mt={4} gap={2}>
               <Button
@@ -272,24 +516,21 @@ const SolicitudCreate = () => {
                 Cancelar
               </Button>
 
-              <Button
-                variant="outlined"
-                onClick={handleGuardar}
-                disabled={loading}
-              >
-                {loading ? "Guardando..." : "Guardar"}
-              </Button>
 
               <Button
                 variant="contained"
-                onClick={handleCrearCotizacion}
+                onClick={handleProcesarSolicitud}
                 disabled={loading}
                 sx={{
                   backgroundColor: "#0aa000",
                   "&:hover": { backgroundColor: "#088500" }
                 }}
               >
-                {loading ? "Procesando..." : "Siguiente.."}
+                {loading
+                  ? "Procesando..."
+                  : esVisitaTecnica
+                  ? "Crear Visita"
+                  : "Siguiente.."}
               </Button>
             </Box>
           </Box>

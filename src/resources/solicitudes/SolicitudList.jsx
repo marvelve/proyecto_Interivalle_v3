@@ -168,6 +168,7 @@ const SolicitudList = () => {
         <FunctionField
           label="Acciones"
           render={(record) =>
+           record.tipoSolicitud === "COTIZACION_BASE" &
             record.estado === "PENDIENTE"
               ? <CrearCotizacionButton record={record} />
               : "-"
