@@ -102,6 +102,12 @@ const SolicitudList = () => {
 
   const esAdmin = String(idRol) === "1";
 
+  const redirect = useRedirect();
+
+  const handleReprogramar = (record) => {
+    redirect(`/solicitudes/${record.idSolicitud}/reprogramar`);
+  };
+
   return (
     <List
       title="Listado de Solicitudes"
@@ -147,6 +153,18 @@ const SolicitudList = () => {
 
         <DateField source="fechaSolicitud" label="Fecha" />
 
+        <FunctionField
+          label="Fecha/Hora Visita"
+          render={(record) => {
+            if (record?.tipoSolicitud !== "VISITA_TECNICA") return "-";
+
+            const fecha = record?.fechaVisita || "-";
+            const hora = record?.horaVisita || "-";
+
+            return `${fecha} - ${hora}`;
+          }}
+        />
+
         {/* SERVICIOS */}
 
         <FunctionField
@@ -167,12 +185,34 @@ const SolicitudList = () => {
 
         <FunctionField
           label="Acciones"
-          render={(record) =>
-           record.tipoSolicitud === "COTIZACION_BASE" &
-            record.estado === "PENDIENTE"
-              ? <CrearCotizacionButton record={record} />
-              : "-"
-          }
+          render={(record) => {
+            if (
+              record?.tipoSolicitud === "COTIZACION_BASE" &&
+              (record?.estado === "PENDIENTE" || record?.estado === "REPROGRAMADA")
+            ) {
+              return (
+                <CrearCotizacionButton record={record} />
+              );
+            }
+
+            if (record?.tipoSolicitud === "VISITA_TECNICA") {
+              return (
+                <Button
+                  label="REPROGRAMAR"
+                  onClick={() => handleReprogramar(record)}
+                  sx={{
+                      backgroundColor: "#14a800",
+                      color: "#fff",
+                      px: 2,
+                      borderRadius: 1,
+                      "&:hover": { backgroundColor: "#118a00" }
+                    }}
+                />
+              );
+            }
+
+            return <span>-</span>;
+          }}
         />
 
       </Datagrid>

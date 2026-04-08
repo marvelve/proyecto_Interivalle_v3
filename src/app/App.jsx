@@ -20,6 +20,7 @@ import UsuarioCreate from "../resources/usuarios/UsuarioCreate";
 import SolicitudList from "../resources/solicitudes/SolicitudList";
 import SolicitudCreate from "../resources/solicitudes/SolicitudCreate";
 import SolicitudShow from "../resources/solicitudes/SolicitudShow";
+import SolicitudReprogramar from "../resources/solicitudes/SolicitudReprogramar";
 
 import CotizacionList from "../resources/cotizaciones/CotizacionList";
 import CotizacionVista from "../resources/cotizaciones/CotizacionVista";
@@ -51,6 +52,8 @@ const App = () => {
       <Route path="/cotizaciones-personalizadas/:idCotizacion/detalle" element={<CotizacionPersonalizadaDetalle />} />     
       <Route path="/cotizaciones/:idCotizacion/cronograma" element={<CronogramaCreate />}/>
       <Route path="/cronogramas/cotizacion/:idCotizacion" element={<CronogramaVista />} />
+      <Route path="/solicitudes/:idSolicitud/reprogramar" element={<SolicitudReprogramar />}
+/>
     </CustomRoutes>
 
       {(permissions) => [
