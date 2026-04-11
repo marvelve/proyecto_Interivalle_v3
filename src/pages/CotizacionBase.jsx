@@ -29,6 +29,7 @@ const CotizacionBase = () => {
     cantidadBanos: "",
     tipoCielo: "ESTUCO",
     divisionPared: false,
+    
   });
 
   const [formDataCarpinteria, setFormDataCarpinteria] = useState({
@@ -205,6 +206,13 @@ const CotizacionBase = () => {
                 : null,
               tipoCielo: formDataManoObra.tipoCielo || null,
               divisionPared: !!formDataManoObra.divisionPared,
+
+              metrosCuadradosPanelYeso: 20,
+              cantidadPoyos: 3,
+              cantidadPuntosElectricos: 4,
+              metrosCuadradosMuro: 12,
+              metrosCuadradosCielo: 18,
+              metrosCuadradosTaparTuberias: 6
             }
           : null,
         carpinteria: seccionCarpinteriaVisible
