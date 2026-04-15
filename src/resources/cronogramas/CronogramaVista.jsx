@@ -97,6 +97,9 @@ const CronogramaVista = () => {
     novedades: "",
   });
 
+  const [tieneSeguimiento, setTieneSeguimiento] = useState(false);
+  const [verificandoSeguimiento, setVerificandoSeguimiento] = useState(false);
+
   const idRol = Number(localStorage.getItem("idRol"));
   const esSupervisor = idRol === 2;
   const esCliente = idRol === 3;
@@ -106,25 +109,52 @@ const CronogramaVista = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idCotizacion]);
 
-  const cargarCronograma = async () => {
-    try {
-      setLoading(true);
+const cargarCronograma = async () => {
+  try {
+    setLoading(true);
 
-      const { json } = await httpClient(
-        `${apiUrl}/api/cliente/cronogramas/cotizacion/${idCotizacion}`
-      );
+    const { json } = await httpClient(
+      `${apiUrl}/api/cliente/cronogramas/cotizacion/${idCotizacion}`
+    );
 
-      setCronograma(json);
-    } catch (error) {
-      console.error("Error cargando cronograma:", error);
-      notify(
-        error?.body?.message || error?.message || "No se pudo cargar el cronograma",
-        { type: "error" }
-      );
-    } finally {
-      setLoading(false);
+    setCronograma(json);
+
+    if (json?.idCronograma) {
+      await verificarSeguimiento(json.idCronograma);
+    } else {
+      setTieneSeguimiento(false);
     }
-  };
+  } catch (error) {
+    console.error("Error cargando cronograma:", error);
+    notify(
+      error?.body?.message || error?.message || "No se pudo cargar el cronograma",
+      { type: "error" }
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+  const verificarSeguimiento = async (idCronograma) => {
+  if (!idCronograma) {
+    setTieneSeguimiento(false);
+    return;
+  }
+
+  try {
+    setVerificandoSeguimiento(true);
+
+    const { json } = await httpClient(
+      `${apiUrl}/api/avances/cronograma/${idCronograma}`
+    );
+
+    setTieneSeguimiento(Array.isArray(json) && json.length > 0);
+  } catch (error) {
+    console.error("Error verificando seguimiento:", error);
+    setTieneSeguimiento(false);
+  } finally {
+    setVerificandoSeguimiento(false);
+  }
+};
 
   const semanas = useMemo(() => {
     if (!cronograma?.semanas) return [];
@@ -278,25 +308,38 @@ const CronogramaVista = () => {
   return (
     <Box p={3}>
       <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={3}
-        flexWrap="wrap"
-        gap={2}
-      >
-        <Typography variant="h4" fontWeight="bold">
-          Cronograma cotización #{cronograma.idCotizacion || idCotizacion}
-        </Typography>
-
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={3}
+          flexWrap="wrap"
+          gap={2}
         >
-          Volver
-        </Button>
-      </Stack>
+          <Typography variant="h4" fontWeight="bold">
+            Cronograma cotización #{cronograma.idCotizacion || idCotizacion}
+          </Typography>
+
+          <Stack direction="row" spacing={2} flexWrap="wrap">
+            <Button
+              variant="contained"
+              onClick={() =>
+                navigate(`/cronogramas/${cronograma.idCronograma}/seguimiento`)
+              }
+              sx={{ textTransform: "none", borderRadius: 2 }}
+            >
+              IR a seguimiento de obra
+            </Button>
+
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate(-1)}
+              sx={{ textTransform: "none", borderRadius: 2 }}
+            >
+              Volver
+            </Button>
+          </Stack>
+        </Stack>
 
       <Grid container spacing={2} mb={3}>
         <Grid item xs={12} md={3}>

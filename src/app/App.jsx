@@ -30,9 +30,9 @@ import CronogramaCreate from "../resources/cronogramas/CronogramaCreate";
 import CronogramaEdit from "../resources/cronogramas/CronogramaEdit";
 import CronogramaVista from "../resources/cronogramas/CronogramaVista";
 
-import AvanceList from "../resources/avances/AvanceList";
-import AvanceCreate from "../resources/avances/AvanceCreate";
-import AvanceShow from "../resources/avances/AvanceShow";
+import SeguimientoObraList from "../resources/seguimientoObra/SeguimientoObraList";
+import SeguimientoList from "../resources/seguimientoObra/SeguimientoList";
+import AvanceShow from "../resources/seguimientoObra/AvanceShow";
 
 const App = () => {
   return (
@@ -52,8 +52,11 @@ const App = () => {
       <Route path="/cotizaciones-personalizadas/:idCotizacion/detalle" element={<CotizacionPersonalizadaDetalle />} />     
       <Route path="/cotizaciones/:idCotizacion/cronograma" element={<CronogramaCreate />}/>
       <Route path="/cronogramas/cotizacion/:idCotizacion" element={<CronogramaVista />} />
-      <Route path="/solicitudes/:idSolicitud/reprogramar" element={<SolicitudReprogramar />}
-/>
+      <Route path="/solicitudes/:idSolicitud/reprogramar" element={<SolicitudReprogramar />} />
+      {/* Seguimiento de obra por cronograma */}
+        <Route path="/cronogramas/:idCronograma/seguimiento" element={<SeguimientoList />} />
+        <Route path="/cronogramas/:idCronograma/seguimiento/:idAvance" element={<AvanceShow/>} />
+      <Route path="/seguimiento" element={<SeguimientoObraList />} />
     </CustomRoutes>
 
       {(permissions) => [
@@ -101,13 +104,11 @@ const App = () => {
         ) : null,
 
         permissions === "1" || permissions === "2" || permissions === "3" ? (
-          <Resource
-            key="avances"
-            name="avances"
-            options={{ label: "Avances" }}
-            list={AvanceList}
-            create={AvanceCreate}
-            show={AvanceShow}
+       <Resource
+            key="seguimiento"
+            name="seguimiento"
+            options={{ label: "Seguimiento de Obra" }}
+            list={SeguimientoObraList}
           />
         ) : null,
       ]}

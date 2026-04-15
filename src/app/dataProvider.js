@@ -60,6 +60,15 @@ getList: async (resource, params) => {
     };
   }
 
+   if (resource === "cronogramas") {
+      const { json } = await httpClient(`${apiUrl}/api/cliente/cronogramas`);
+
+      return {
+        data: mapIdField(json),
+        total: Array.isArray(json) ? json.length : 0,
+      };
+    }
+
   const response = await baseDataProvider.getList(resource, params);
   return {
     ...response,

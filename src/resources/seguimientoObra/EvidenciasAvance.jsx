@@ -1,0 +1,224 @@
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Grid,
+  TextField,
+  Typography,
+  Stack,
+} from "@mui/material";
+import {apiUrl} from "../../app/httpClient";
+
+const EvidenciasAvance = ({ idAvance }) => {
+  const [descripcion, setDescripcion] = useState("");
+  const [archivo, setArchivo] = useState(null);
+  const [evidencias, setEvidencias] = useState([]);
+  const [guardando, setGuardando] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const token = localStorage.getItem("token");
+  const idRol = Number(localStorage.getItem("idRol"));
+
+  const puedeSubir = idRol === 1 || idRol === 2;
+
+  const cargarEvidencias = async () => {
+    try {
+      setLoading(true);
+
+      const response = await fetch(
+        `${apiUrl}/api/evidencias/avance/${idAvance}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(
+          error.message || "No se pudieron cargar las evidencias"
+        );
+      }
+
+      const data = await response.json();
+      setEvidencias(data || []);
+    } catch (error) {
+      console.error("Error cargando evidencias:", error);
+      alert(error.message || "No se pudieron cargar las evidencias");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (idAvance) {
+      cargarEvidencias();
+    }
+  }, [idAvance]);
+
+  const handleArchivoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setArchivo(file);
+    }
+  };
+
+  const handleSubir = async () => {
+    if (!archivo) {
+      alert("Debe seleccionar un archivo");
+      return;
+    }
+
+    try {
+      setGuardando(true);
+
+      const formData = new FormData();
+      formData.append("idAvance", idAvance);
+      formData.append("descripcion", descripcion || "");
+      formData.append("archivo", archivo);
+
+      const response = await fetch(`${apiUrl}/api/evidencias/upload`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || "No se pudo subir la evidencia");
+      }
+
+      setDescripcion("");
+      setArchivo(null);
+
+      const inputFile = document.getElementById("input-archivo-evidencia");
+      if (inputFile) inputFile.value = "";
+
+      await cargarEvidencias();
+      alert("Evidencia subida correctamente");
+    } catch (error) {
+      console.error("Error subiendo evidencia:", error);
+      alert(error.message || "No se pudo subir la evidencia");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <Card sx={{ mb: 3, borderRadius: 3, boxShadow: 3 }}>
+      <CardContent>
+        <Typography variant="h6" fontWeight="bold" gutterBottom>
+          Evidencias del avance
+        </Typography>
+
+        {puedeSubir && (
+          <Box mb={3}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={5}>
+                <TextField
+                  fullWidth
+                  label="Descripción"
+                  value={descripcion}
+                  onChange={(e) => setDescripcion(e.target.value)}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <input
+                  id="input-archivo-evidencia"
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleArchivoChange}
+                />
+              </Grid>
+
+              <Grid item xs={12} md={3}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={handleSubir}
+                  disabled={guardando}
+                >
+                  {guardando ? "Subiendo..." : "Subir evidencia"}
+                </Button>
+              </Grid>
+            </Grid>
+
+            {archivo && (
+              <Typography variant="body2" mt={2}>
+                Archivo seleccionado: {archivo.name}
+              </Typography>
+            )}
+          </Box>
+        )}
+
+        {loading ? (
+          <Typography>Cargando evidencias...</Typography>
+        ) : evidencias.length === 0 ? (
+          <Typography>No hay evidencias registradas para este avance.</Typography>
+        ) : (
+          <Grid container spacing={2}>
+            {evidencias.map((ev) => {
+              const urlCompleta = `${apiUrl}${ev.urlArchivo}`;
+
+              return (
+                <Grid item xs={12} md={6} lg={4} key={ev.idEvidencia}>
+                  <Card variant="outlined" sx={{ borderRadius: 3 }}>
+                    <CardContent>
+                      <Stack spacing={1}>
+                        <Typography fontWeight="bold">
+                          {ev.tipoArchivo || "EVIDENCIA"}
+                        </Typography>
+
+                        <Typography variant="body2">
+                          {ev.descripcion || "Sin descripción"}
+                        </Typography>
+
+                        {ev.tipoArchivo === "FOTO" ? (
+                          <Box
+                            component="img"
+                            src={urlCompleta}
+                            alt={ev.nombreArchivo}
+                            sx={{
+                              width: "100%",
+                              maxHeight: 220,
+                              objectFit: "cover",
+                              borderRadius: 2,
+                              border: "1px solid #ddd",
+                            }}
+                          />
+                        ) : (
+                          <video
+                            controls
+                            width="100%"
+                            style={{ borderRadius: 8, border: "1px solid #ddd" }}
+                          >
+                            <source src={urlCompleta} />
+                            Tu navegador no soporta video.
+                          </video>
+                        )}
+
+                        <Typography variant="caption" color="text.secondary">
+                          {ev.nombreArchivo}
+                        </Typography>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
+          </Grid>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default EvidenciasAvance;

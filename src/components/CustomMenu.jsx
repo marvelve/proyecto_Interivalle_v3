@@ -63,8 +63,8 @@ const CustomMenu = () => {
 
       {(permissions === "1" || permissions === "2" || permissions === "3") && (
         <MenuItemLink
-          to="/avances"
-          primaryText="Avances"
+          to="/seguimiento"
+          primaryText="Seguimiento de Obra"
           leftIcon={<TimelineIcon />}
           sidebarIsOpen={open}
         />
