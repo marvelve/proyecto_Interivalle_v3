@@ -8,8 +8,12 @@ import {
   TextField,
   Typography,
   Stack,
+  Dialog,
+  DialogContent,
+  IconButton,
 } from "@mui/material";
 import {apiUrl} from "../../app/httpClient";
+import CloseIcon from "@mui/icons-material/Close";
 
 const EvidenciasAvance = ({ idAvance }) => {
   const [descripcion, setDescripcion] = useState("");
@@ -20,6 +24,8 @@ const EvidenciasAvance = ({ idAvance }) => {
 
   const token = localStorage.getItem("token");
   const idRol = Number(localStorage.getItem("idRol"));
+  const [openImagen, setOpenImagen] = useState(false);
+  const [imagenSeleccionada, setImagenSeleccionada] = useState(null);
 
   const puedeSubir = idRol === 1 || idRol === 2;
 
@@ -55,6 +61,15 @@ const EvidenciasAvance = ({ idAvance }) => {
     }
   };
 
+  const handleAbrirImagen = (url, nombre) => {
+  setImagenSeleccionada({ url, nombre });
+  setOpenImagen(true);
+};
+
+const handleCerrarImagen = () => {
+  setOpenImagen(false);
+  setImagenSeleccionada(null);
+};
   useEffect(() => {
     if (idAvance) {
       cargarEvidencias();
@@ -166,8 +181,14 @@ const EvidenciasAvance = ({ idAvance }) => {
         ) : (
           <Grid container spacing={2}>
             {evidencias.map((ev) => {
-              const urlCompleta = `${apiUrl}${ev.urlArchivo}`;
-
+                 console.log("urlArchivo:", ev.urlArchivo);
+             // const urlCompleta = `${apiUrl}${ev.urlArchivo}`;
+                const urlCompleta = !ev.urlArchivo
+                    ? ""
+                    : ev.urlArchivo.startsWith("http")
+                        ? ev.urlArchivo
+                        : `${apiUrl}${ev.urlArchivo.startsWith("/") ? "" : "/"}${ev.urlArchivo}`;
+                 console.log("urlArchivo:", ev.urlArchivo);
               return (
                 <Grid item xs={12} md={6} lg={4} key={ev.idEvidencia}>
                   <Card variant="outlined" sx={{ borderRadius: 3 }}>
@@ -186,14 +207,20 @@ const EvidenciasAvance = ({ idAvance }) => {
                             component="img"
                             src={urlCompleta}
                             alt={ev.nombreArchivo}
+                            onClick={() => handleAbrirImagen(urlCompleta, ev.nombreArchivo)}
                             sx={{
-                              width: "100%",
-                              maxHeight: 220,
-                              objectFit: "cover",
-                              borderRadius: 2,
-                              border: "1px solid #ddd",
+                            width: "100%",
+                            maxHeight: 220,
+                            objectFit: "cover",
+                            borderRadius: 2,
+                            border: "1px solid #ddd",
+                            cursor: "pointer",
+                            transition: "0.2s",
+                            "&:hover": {
+                                transform: "scale(1.02)",
+                            },
                             }}
-                          />
+                        />
                         ) : (
                           <video
                             controls
@@ -216,6 +243,39 @@ const EvidenciasAvance = ({ idAvance }) => {
             })}
           </Grid>
         )}
+            <Dialog
+                    open={openImagen}
+                    onClose={handleCerrarImagen}
+                    maxWidth="md"
+                    fullWidth
+                    >
+                    <Box display="flex" justifyContent="flex-end" p={1}>
+                        <IconButton onClick={handleCerrarImagen}>
+                        <CloseIcon />
+                        </IconButton>
+                    </Box>
+
+                    <DialogContent sx={{ textAlign: "center" }}>
+                        {imagenSeleccionada && (
+                        <>
+                            <Box
+                            component="img"
+                            src={imagenSeleccionada.url}
+                            alt={imagenSeleccionada.nombre}
+                            sx={{
+                                width: "100%",
+                                maxHeight: "80vh",
+                                objectFit: "contain",
+                                borderRadius: 2,
+                            }}
+                            />
+                            <Typography variant="body2" mt={2}>
+                            {imagenSeleccionada.nombre}
+                            </Typography>
+                        </>
+                        )}
+                    </DialogContent>
+                    </Dialog>
       </CardContent>
     </Card>
   );

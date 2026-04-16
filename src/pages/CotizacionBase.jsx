@@ -210,7 +210,7 @@ const CotizacionBase = () => {
               metrosCuadradosPanelYeso: 20,
               cantidadPoyos: 3,
               cantidadPuntosElectricos: 4,
-              metrosCuadradosMuro: 12,
+              metrosCuadradosMuro: 10,
               metrosCuadradosCielo: 18,
               metrosCuadradosTaparTuberias: 6
             }
@@ -271,6 +271,11 @@ const CotizacionBase = () => {
         alert("La cotización se guardó, pero no llegó el idCotizacion.");
         return;
       }
+
+       // ACTUALIZAR ESTADO DE LA SOLICITUD
+      await httpClient(`${apiUrl}/api/solicitudes/${idSolicitud}/generar`, {
+        method: "PUT",
+      });
 
       navigate(`/cotizaciones/${json.idCotizacion}/vista`);
     } catch (error) {
