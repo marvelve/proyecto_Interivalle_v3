@@ -43,7 +43,7 @@ const CustomMenu = () => {
         />
       )}
 
-      {(permissions === "1" || permissions === "3") && (
+      {(permissions === "1" || permissions === "2" || permissions === "3") && (
         <MenuItemLink
           to="/cotizaciones"
           primaryText="Cotizaciones"

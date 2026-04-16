@@ -115,7 +115,7 @@ const SeguimientoForm = ({
     <Card sx={{ mb: 3 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          {avanceInicial ? "Editar avance" : "Registrar avance semanal"}
+          {avanceInicial ? "Editar avance" : "Registro semanal"}
         </Typography>
 
         <Grid container spacing={2}>

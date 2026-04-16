@@ -65,16 +65,16 @@ const estilos = {
   tdSemana: {
     border: "1px solid #ccc",
     padding: "10px",
-   textAlign: "center",
-  verticalAlign: "middle",
+    textAlign: "center",
+    verticalAlign: "middle",
     fontWeight: "bold",
     background: "#f8f9fb",
   },
   tdActividad: {
     border: "1px solid #ccc",
     padding: "10px",
-   textAlign: "center",
-  verticalAlign: "middle",
+    textAlign: "center",
+    verticalAlign: "middle",
     fontWeight: "bold",
     background: "#fcfcfc",
   },
@@ -93,7 +93,8 @@ const construirFilasConRowSpan = (semanas = []) => {
     const totalFilasSemana =
       actividades.length > 0
         ? actividades.reduce((acc, act) => {
-            const materiales = act?.materiales?.length > 0 ? act.materiales.length : 1;
+            const materiales =
+              act?.materiales?.length > 0 ? act.materiales.length : 1;
             return acc + materiales;
           }, 0)
         : 1;
@@ -166,26 +167,49 @@ const CotizacionVista = () => {
   const [aprobando, setAprobando] = useState(false);
   const notify = useNotify();
 
+  const idRol = Number(localStorage.getItem("idRol"));
+  const esCliente = idRol === 3;
+
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+
+  const manana = new Date(hoy);
+  manana.setDate(manana.getDate() + 1);
+
+  const minFecha = manana.toISOString().split("T")[0];
+
   useEffect(() => {
     cargarCotizacion();
   }, [idCotizacion]);
 
   const cargarCotizacion = async () => {
+    setLoading(true);
+
     try {
-      const { json } = await httpClient(
-        `${apiUrl}/api/cliente/cotizaciones/${idCotizacion}/vista-completa`
-      );
+      const urlVistaCompleta = esCliente
+        ? `${apiUrl}/api/cliente/cotizaciones/${idCotizacion}/vista-completa`
+        : `${apiUrl}/api/cotizaciones/${idCotizacion}/vista-completa`;
+
+      console.log("Intentando vista completa:", urlVistaCompleta);
+
+      const { json } = await httpClient(urlVistaCompleta);
 
       console.log("Vista completa cargada:", json);
+
       setCotizacion({
-      ...json,
-      semanas: json.semanas || [],
-    });
+        ...json,
+        semanas: json.semanas || [],
+      });
     } catch (error) {
-      console.warn("Falló vista-completa, intentando cargar cotización base...", error);
+      console.warn(
+        "Falló vista-completa, intentando cargar cotización base...",
+        error
+      );
 
       const mensaje = error?.body?.message || error?.message || "";
-      const noHayPersonalizada = mensaje.includes("No existe cotización personalizada");
+      const noHayPersonalizada = mensaje.includes(
+        "No existe cotización personalizada"
+      );
 
       if (!noHayPersonalizada) {
         alert(mensaje || "No se pudo cargar la cotización");
@@ -194,9 +218,13 @@ const CotizacionVista = () => {
       }
 
       try {
-        const { json } = await httpClient(
-          `${apiUrl}/api/cliente/cotizaciones/${idCotizacion}`
-        );
+        const urlBase = esCliente
+          ? `${apiUrl}/api/cliente/cotizaciones/${idCotizacion}`
+          : `${apiUrl}/api/cotizaciones/${idCotizacion}`;
+
+        console.log("Intentando cotización base:", urlBase);
+
+        const { json } = await httpClient(urlBase);
 
         console.log("Cotización base cargada:", json);
 
@@ -230,6 +258,13 @@ const CotizacionVista = () => {
 
   const handleAprobar = async () => {
     try {
+      if (!esCliente) {
+        notify("Solo el cliente puede aprobar la cotización", {
+          type: "warning",
+        });
+        return;
+      }
+
       if (!fechaInicio) {
         notify("Debes seleccionar la fecha de inicio", { type: "warning" });
         return;
@@ -263,7 +298,9 @@ const CotizacionVista = () => {
       navigate(`/cronogramas/cotizacion/${idCotizacion}`);
     } catch (error) {
       console.error(error);
-      notify(error.message || "Error al aprobar la cotización", { type: "error" });
+      notify(error.message || "Error al aprobar la cotización", {
+        type: "error",
+      });
     } finally {
       setAprobando(false);
     }
@@ -305,20 +342,25 @@ const CotizacionVista = () => {
     return semanasBase
       .filter((semanaObj) => {
         const cumpleSemana =
-          filtroSemana === "" || Number(semanaObj?.semana) === Number(filtroSemana);
+          filtroSemana === "" ||
+          Number(semanaObj?.semana) === Number(filtroSemana);
 
         if (!cumpleSemana) return false;
 
         if (filtroActividad === "") return true;
 
         return (semanaObj?.actividades || []).some(
-          (act) => normalizarTexto(act?.actividad) === normalizarTexto(filtroActividad)
+          (act) =>
+            normalizarTexto(act?.actividad) === normalizarTexto(filtroActividad)
         );
       })
       .map((semanaObj) => {
         const actividades = (semanaObj?.actividades || []).filter((act) => {
           if (filtroActividad === "") return true;
-          return normalizarTexto(act?.actividad) === normalizarTexto(filtroActividad);
+          return (
+            normalizarTexto(act?.actividad) ===
+            normalizarTexto(filtroActividad)
+          );
         });
 
         return {
@@ -447,16 +489,19 @@ const CotizacionVista = () => {
           </Grid>
         </Grid>
 
-        <Button
-          variant="contained"
-          color="success"
-          onClick={() => setOpenAprobar(true)}
-          disabled={
-            cotizacion?.estado === "APROBADA" || cotizacion?.estado === "RECHAZADA"
-          }
-        >
-          APROBAR
-        </Button>
+        {esCliente && (
+          <Button
+            variant="contained"
+            color="success"
+            onClick={() => setOpenAprobar(true)}
+            disabled={
+              cotizacion?.estado === "APROBADA" ||
+              cotizacion?.estado === "RECHAZADA"
+            }
+          >
+            APROBAR
+          </Button>
+        )}
 
         <Typography variant="h5" fontWeight="bold" mb={2} mt={4}>
           Filtros
@@ -530,18 +575,23 @@ const CotizacionVista = () => {
               VOLVER
             </Button>
 
-            <Button
-              variant="contained"
-              color="success"
-              onClick={() =>
-                navigate(`/cotizacion-personalizada/formularios/${idCotizacion}`)
-              }
-              disabled={
-                cotizacion?.estado === "APROBADA" || cotizacion?.estado === "RECHAZADA"
-              }
-            >
-              ADICIONAR A COTIZACION
-            </Button>
+            {esCliente && (
+              <Button
+                variant="contained"
+                color="success"
+                onClick={() =>
+                  navigate(
+                    `/cotizacion-personalizada/formularios/${idCotizacion}`
+                  )
+                }
+                disabled={
+                  cotizacion?.estado === "APROBADA" ||
+                  cotizacion?.estado === "RECHAZADA"
+                }
+              >
+                ADICIONAR A COTIZACION
+              </Button>
+            )}
           </Grid>
         </Grid>
 
@@ -579,13 +629,19 @@ const CotizacionVista = () => {
                     )}
 
                     {fila.mostrarActividad && (
-                      <td style={estilos.tdActividad} rowSpan={fila.rowSpanActividad}>
+                      <td
+                        style={estilos.tdActividad}
+                        rowSpan={fila.rowSpanActividad}
+                      >
                         {fila.actividad}
                       </td>
                     )}
 
                     {fila.mostrarActividad && (
-                      <td style={estilos.tdActividad} rowSpan={fila.rowSpanActividad}>
+                      <td
+                        style={estilos.tdActividad}
+                        rowSpan={fila.rowSpanActividad}
+                      >
                         {formatearMoneda(fila.precioActividad)}
                       </td>
                     )}
@@ -732,38 +788,41 @@ const CotizacionVista = () => {
           </Paper>
         </Box>
 
-        <Dialog
-          open={openAprobar}
-          onClose={() => setOpenAprobar(false)}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>Aprobar cotización</DialogTitle>
+        {esCliente && (
+          <Dialog
+            open={openAprobar}
+            onClose={() => setOpenAprobar(false)}
+            maxWidth="sm"
+            fullWidth
+          >
+            <DialogTitle>Fecha Inicio Obra</DialogTitle>
 
-          <DialogContent>
-            <TextField
-              label="Fecha de inicio"
-              type="date"
-              fullWidth
-              margin="normal"
-              InputLabelProps={{ shrink: true }}
-              value={fechaInicio}
-              onChange={(e) => setFechaInicio(e.target.value)}
-            />
-          </DialogContent>
+            <DialogContent>
+              <TextField
+                label="Fecha de inicio"
+                type="date"
+                fullWidth
+                margin="normal"
+                InputLabelProps={{ shrink: true }}
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+                inputProps={{ min: minFecha }}
+              />
+            </DialogContent>
 
-          <DialogActions>
-            <Button onClick={() => setOpenAprobar(false)}>Cancelar</Button>
-            <Button
-              variant="contained"
-              color="success"
-              onClick={handleAprobar}
-              disabled={aprobando}
-            >
-              {aprobando ? "Aprobando..." : "Confirmar"}
-            </Button>
-          </DialogActions>
-        </Dialog>
+            <DialogActions>
+              <Button onClick={() => setOpenAprobar(false)}>Cancelar</Button>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleAprobar}
+                disabled={aprobando}
+              >
+                {aprobando ? "Aprobando..." : "Confirmar"}
+              </Button>
+            </DialogActions>
+          </Dialog>
+        )}
       </Paper>
     </Box>
   );

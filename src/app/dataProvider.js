@@ -52,7 +52,25 @@ getList: async (resource, params) => {
   }
 
   if (resource === "cotizaciones") {
-    const { json } = await httpClient(`${apiUrl}/api/cliente/cotizaciones`);
+    const idRol = Number(localStorage.getItem("idRol"));
+    const correoUsuario =
+      params.filter?.correoUsuario ||
+      localStorage.getItem("correoUsuario") ||
+      localStorage.getItem("usuarioCorreo") ||
+      "";
+
+    let url = `${apiUrl}/api/cotizaciones`;
+
+    // Cliente: solo sus cotizaciones
+    if (idRol === 3) {
+      url = `${apiUrl}/api/cliente/cotizaciones${
+        correoUsuario
+          ? `?correoUsuario=${encodeURIComponent(correoUsuario)}`
+          : ""
+      }`;
+    }
+
+    const { json } = await httpClient(url);
 
     return {
       data: mapIdField(json),
@@ -78,14 +96,19 @@ getList: async (resource, params) => {
   
 getOne: async (resource, params) => {
   if (resource === "cotizaciones") {
-    const { json } = await httpClient(
-      `${apiUrl}/api/cliente/cotizaciones/${params.id}`
-    );
+  const idRol = Number(localStorage.getItem("idRol"));
 
-    return {
-      data: mapIdField(json),
-    };
-  }
+  const url =
+    idRol === 3
+      ? `${apiUrl}/api/cliente/cotizaciones/${params.id}`
+      : `${apiUrl}/api/cotizaciones/${params.id}`;
+
+  const { json } = await httpClient(url);
+
+  return {
+    data: mapIdField(json),
+  };
+}
 
   const response = await baseDataProvider.getOne(resource, params);
   return {

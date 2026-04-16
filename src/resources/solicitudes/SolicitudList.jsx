@@ -24,34 +24,11 @@ import SolicitudVacia from "./SolicitudVacia";
 ================================= */
 
 const CrearCotizacionButton = ({ record }) => {
-
-  const notify = useNotify();
   const redirect = useRedirect();
-  const refresh = useRefresh();
 
-  const handleClick = async () => {
-
-    try {
-
-      await httpClient(`${apiUrl}/api/solicitudes/${record.idSolicitud}/generar`, {
-        method: "PUT"
-      });
-
-      notify("Cotización generada correctamente", { type: "success" });
-
-      refresh();
-
-      redirect("/cotizacion-base");
-
-    } catch (error) {
-
-      console.error(error);
-
-      notify(
-        error?.body?.message || "Error al generar la cotización",
-        { type: "error" }
-      );
-    }
+  const handleClick = () => {
+    localStorage.setItem("idSolicitud", record.idSolicitud);
+    redirect("/cotizacion-base");
   };
 
   return (

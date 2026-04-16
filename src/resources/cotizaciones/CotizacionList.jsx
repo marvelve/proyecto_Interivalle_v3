@@ -15,21 +15,32 @@ import CotizacionVacia from "./CotizacionVacia";
 
 const CotizacionActions = () => {
   const redirect = useRedirect();
+  const idRol = Number(localStorage.getItem("idRol"));
 
   return (
     <TopToolbar>
-      <Button
-        label="Crear solicitud"
-        onClick={() => redirect("/solicitudes/nueva")}
-      >
-        <AddIcon />
-      </Button>
+      {[1, 2, 3].includes(idRol) && (
+        <Button
+          label="Crear solicitud"
+          onClick={() => redirect("/solicitudes/nueva")}
+        >
+          <AddIcon />
+        </Button>
+      )}
     </TopToolbar>
   );
 };
 
 const CotizacionList = () => {
   const redirect = useRedirect();
+
+  const idRol = Number(localStorage.getItem("idRol"));
+  const correoUsuario =
+    localStorage.getItem("correoUsuario") ||
+    localStorage.getItem("usuarioCorreo") ||
+    "";
+
+  const filtros = idRol === 3 ? { correoUsuario } : {};
 
   return (
     <List
@@ -38,31 +49,32 @@ const CotizacionList = () => {
       empty={<CotizacionVacia />}
       perPage={10}
       sort={{ field: "idCotizacion", order: "DESC" }}
+      filter={filtros}
     >
       <Datagrid bulkActionButtons={false} rowClick={false}>
         <TextField source="idCotizacion" label="ID" />
         <TextField source="nombreProyecto" label="Proyecto" />
-        <TextField source="tipoCotizacion" label="Tipo" />
+        <TextField source="nombreUsuario" label="Cliente" />
         <TextField source="estado" label="Estado" />
         <DateField source="fechaCreacion" label="Fecha" showTime={false} />
 
-     <FunctionField
-      label="Ver"
-      render={(record) =>
-        record?.idCotizacion ? (
-          <Button
-            label=""
-            onClick={() =>
-              redirect(`/cotizaciones/${record.idCotizacion}/vista`)
-            }
-          >
-            <VisibilityIcon />
-          </Button>
-        ) : (
-          <span style={{ color: "#999" }}>—</span>
-        )
-      }
-    />
+        <FunctionField
+          label="Ver"
+          render={(record) =>
+            record?.idCotizacion ? (
+              <Button
+                label=""
+                onClick={() =>
+                  redirect(`/cotizaciones/${record.idCotizacion}/vista`)
+                }
+              >
+                <VisibilityIcon />
+              </Button>
+            ) : (
+              <span style={{ color: "#999" }}>—</span>
+            )
+          }
+        />
       </Datagrid>
     </List>
   );

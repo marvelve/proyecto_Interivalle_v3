@@ -65,11 +65,15 @@ const SolicitudCreate = () => {
     localStorage.removeItem("serviciosSeleccionados");
     localStorage.removeItem("tipoSolicitud");
     localStorage.removeItem("nombreProyecto");
+    localStorage.removeItem("fechaVisita");
+    localStorage.removeItem("horaVisita");
+    localStorage.removeItem("direccionVisita");
+    localStorage.removeItem("celularCliente");
   }, []);
 
   const obtenerFechaMinima = () => {
     const hoy = new Date();
-    hoy.setDate(hoy.getDate() + 1); // solo fechas futuras, desde mañana
+    hoy.setDate(hoy.getDate() + 1);
     return hoy.toISOString().split("T")[0];
   };
 
@@ -94,7 +98,7 @@ const SolicitudCreate = () => {
       ...prev,
       tipoSolicitud: value,
       fechaVisita: value === "VISITA_TECNICA" ? prev.fechaVisita : "",
-      horaVisita: value === "VISITA_TECNICA" ? prev.horaVisita : "",
+      horaVisita: value === "VISITA_TECNICA" ? prev.horaVisita : "08:00",
       direccionVisita: value === "VISITA_TECNICA" ? prev.direccionVisita : "",
       celularCliente: value === "VISITA_TECNICA" ? prev.celularCliente : ""
     }));
@@ -229,14 +233,6 @@ const SolicitudCreate = () => {
     }
   };
 
-  const redirigirSegunTipo = () => {
-    if (formData.tipoSolicitud === "COTIZACION_BASE") {
-      navigate("/cotizacion-base");
-    } else {
-      navigate("/visita-tecnica");
-    }
-  };
-
   const crearNuevaSolicitud = async () => {
     const payload = construirPayload();
 
@@ -285,7 +281,7 @@ const SolicitudCreate = () => {
     }
   };
 
-  const handleCrearCotizacion = async () => {
+  const handleProcesarSolicitud = async () => {
     if (!validarFormulario()) return;
 
     try {
@@ -298,90 +294,30 @@ const SolicitudCreate = () => {
       guardarEnLocalStorage(solicitudIdNueva);
 
       if (formData.tipoSolicitud === "COTIZACION_BASE") {
-        const { json: jsonGenerada } = await httpClient(
-          `${apiUrl}/api/solicitudes/${solicitudIdNueva}/generar`,
-          {
-            method: "PUT",
-            headers: new Headers({
-              "Content-Type": "application/json"
-            })
-          }
-        );
-
-        console.log("Solicitud generada:", jsonGenerada);
-
-        notify("Cotización creada correctamente. Estado: GENERADA", {
+        notify("Solicitud creada correctamente. Estado: PENDIENTE", {
           type: "success"
         });
+
+        navigate("/cotizacion-base");
       } else {
         notify("Visita técnica creada correctamente", {
           type: "success"
         });
-      }
 
-      redirigirSegunTipo();
+        navigate("/solicitudes");
+      }
     } catch (error) {
       console.error(error);
       notify(
         error?.body?.message ||
           error?.message ||
-          "Error al crear la Solicitud",
+          "Error al procesar la solicitud",
         { type: "error" }
       );
     } finally {
       setLoading(false);
     }
   };
-
-  const handleProcesarSolicitud = async () => {
-  if (!validarFormulario()) return;
-
-  try {
-    setLoading(true);
-
-    const json = await crearNuevaSolicitud();
-    const solicitudIdNueva = json.idSolicitud;
-
-    setIdSolicitud(solicitudIdNueva);
-    guardarEnLocalStorage(solicitudIdNueva);
-
-    if (formData.tipoSolicitud === "COTIZACION_BASE") {
-      const { json: jsonGenerada } = await httpClient(
-        `${apiUrl}/api/solicitudes/${solicitudIdNueva}/generar`,
-        {
-          method: "PUT",
-          headers: new Headers({
-            "Content-Type": "application/json"
-          })
-        }
-      );
-
-      console.log("Solicitud generada:", jsonGenerada);
-
-      notify("Cotización creada correctamente. Estado: GENERADA", {
-        type: "success"
-      });
-
-      navigate("/cotizacion-base");
-    } else {
-      notify("Visita técnica creada correctamente", {
-        type: "success"
-      });
-
-      navigate("/solicitudes");
-    }
-  } catch (error) {
-    console.error(error);
-    notify(
-      error?.body?.message ||
-        error?.message ||
-        "Error al procesar la solicitud",
-      { type: "error" }
-    );
-  } finally {
-    setLoading(false);
-  }
-};
 
   return (
     <Box p={3}>
@@ -469,7 +405,6 @@ const SolicitudCreate = () => {
                     <TextField
                       select
                       fullWidth
-                      type="datetime-local"
                       label="Hora de Visita"
                       name="horaVisita"
                       value={formData.horaVisita}
@@ -516,6 +451,13 @@ const SolicitudCreate = () => {
                 Cancelar
               </Button>
 
+              <Button
+                variant="contained"
+                onClick={handleGuardar}
+                disabled={loading}
+              >
+                {loading ? "Guardando..." : "Guardar"}
+              </Button>
 
               <Button
                 variant="contained"

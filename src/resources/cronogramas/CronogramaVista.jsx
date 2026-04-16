@@ -101,8 +101,12 @@ const CronogramaVista = () => {
   const [verificandoSeguimiento, setVerificandoSeguimiento] = useState(false);
 
   const idRol = Number(localStorage.getItem("idRol"));
+  const esAdmin = idRol === 1;
   const esSupervisor = idRol === 2;
   const esCliente = idRol === 3;
+
+    const puedeGestionarSeguimiento = esAdmin || esSupervisor;
+    const puedeVerSeguimiento = esAdmin || esSupervisor || esCliente;
 
   useEffect(() => {
     cargarCronograma();
@@ -134,7 +138,7 @@ const cargarCronograma = async () => {
     setLoading(false);
   }
 };
-  const verificarSeguimiento = async (idCronograma) => {
+const verificarSeguimiento = async (idCronograma) => {
   if (!idCronograma) {
     setTieneSeguimiento(false);
     return;
@@ -308,38 +312,65 @@ const cargarCronograma = async () => {
   return (
     <Box p={3}>
       <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={3}
-          flexWrap="wrap"
-          gap={2}
-        >
-          <Typography variant="h4" fontWeight="bold">
-            Cronograma cotización #{cronograma.idCotizacion || idCotizacion}
-          </Typography>
+  direction="row"
+  justifyContent="space-between"
+  alignItems="center"
+  mb={3}
+  flexWrap="wrap"
+  gap={2}
+>
+  <Typography variant="h4" fontWeight="bold">
+    Cronograma cotización #{cronograma.idCotizacion || idCotizacion}
+  </Typography>
 
-          <Stack direction="row" spacing={2} flexWrap="wrap">
-            <Button
-              variant="contained"
-              onClick={() =>
-                navigate(`/cronogramas/${cronograma.idCronograma}/seguimiento`)
-              }
-              sx={{ textTransform: "none", borderRadius: 2 }}
-            >
-              IR a seguimiento de obra
-            </Button>
+    <Stack direction="row" spacing={2} flexWrap="wrap">
+    {puedeGestionarSeguimiento && (
+      <Button
+        variant="contained"
+        color="success"
+        disabled={verificandoSeguimiento || tieneSeguimiento}
+        onClick={() =>
+          navigate(`/cronogramas/${cronograma.idCronograma}/seguimiento?nuevo=1`)
+        }
+        sx={{ textTransform: "none", borderRadius: 2 }}
+      >
+        Crear seguimiento
+      </Button>
+    )}
 
-            <Button
-              variant="outlined"
-              startIcon={<ArrowBackIcon />}
-              onClick={() => navigate(-1)}
-              sx={{ textTransform: "none", borderRadius: 2 }}
-            >
-              Volver
-            </Button>
-          </Stack>
-        </Stack>
+    {puedeGestionarSeguimiento ? (
+      <Button
+        variant="contained"
+        disabled={verificandoSeguimiento || !tieneSeguimiento}
+        onClick={() =>
+          navigate(`/cronogramas/${cronograma.idCronograma}/seguimiento`)
+        }
+        sx={{ textTransform: "none", borderRadius: 2 }}
+      >
+        Ver seguimiento de obra
+      </Button>
+    ) : esCliente ? (
+      <Button
+        variant="contained"
+        onClick={() =>
+          navigate(`/cronogramas/${cronograma.idCronograma}/seguimiento`)
+        }
+        sx={{ textTransform: "none", borderRadius: 2 }}
+      >
+        Ver seguimiento de obra
+      </Button>
+    ) : null}
+
+    <Button
+      variant="outlined"
+      startIcon={<ArrowBackIcon />}
+      onClick={() => navigate(-1)}
+      sx={{ textTransform: "none", borderRadius: 2 }}
+    >
+      Volver
+    </Button>
+  </Stack>
+</Stack>
 
       <Grid container spacing={2} mb={3}>
         <Grid item xs={12} md={3}>
