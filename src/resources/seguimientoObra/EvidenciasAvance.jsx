@@ -224,7 +224,7 @@ const handleCerrarImagen = () => {
                         ) : (
                           <video
                             controls
-                            width="100%"
+                            width="90%"
                             style={{ borderRadius: 8, border: "1px solid #ddd" }}
                           >
                             <source src={urlCompleta} />

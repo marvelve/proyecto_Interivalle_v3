@@ -451,6 +451,7 @@ const SolicitudCreate = () => {
                 Cancelar
               </Button>
 
+              {!esVisitaTecnica && (
               <Button
                 variant="contained"
                 onClick={handleGuardar}
@@ -458,6 +459,7 @@ const SolicitudCreate = () => {
               >
                 {loading ? "Guardando..." : "Guardar"}
               </Button>
+            )}
 
               <Button
                 variant="contained"
