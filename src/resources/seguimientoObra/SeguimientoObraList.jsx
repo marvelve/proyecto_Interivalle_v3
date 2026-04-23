@@ -24,6 +24,13 @@ const SeguimientoObraList = () => {
   const [registros, setRegistros] = useState([]);
 
   const token = localStorage.getItem("token");
+  const idRol = String(localStorage.getItem("idRol") || "");
+
+  const esAdmin = idRol === "1";
+  const esSupervisor = idRol === "2";
+  const esCliente = idRol === "3";
+
+  const puedeVerColumnasInternas = esAdmin || esSupervisor;
 
   useEffect(() => {
     cargarSeguimientos();
@@ -35,14 +42,13 @@ const SeguimientoObraList = () => {
 
       const responseCronogramas = await fetch(
         `${apiUrl}/api/cliente/cronogramas`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        }
-      );
+         {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
 
       if (!responseCronogramas.ok) {
         const txt = await responseCronogramas.text();
@@ -121,10 +127,26 @@ const SeguimientoObraList = () => {
               <Table>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: "#F3F0FF" }}>
-                    <TableCell sx={{ fontWeight: "bold" }}>ID Cronograma</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>ID Cotización</TableCell>
+                    {puedeVerColumnasInternas && (
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        ID Cronograma
+                      </TableCell>
+                    )}
+
+                    {puedeVerColumnasInternas && (
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        ID Cotización
+                      </TableCell>
+                    )}
+
                     <TableCell sx={{ fontWeight: "bold" }}>Proyecto</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Cliente</TableCell>
+
+                    {puedeVerColumnasInternas && (
+                      <TableCell sx={{ fontWeight: "bold" }}>
+                        Cliente
+                      </TableCell>
+                    )}
+
                     <TableCell sx={{ fontWeight: "bold" }}>Estado</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>Fecha inicio</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>Fecha fin</TableCell>
@@ -138,10 +160,20 @@ const SeguimientoObraList = () => {
                 <TableBody>
                   {registros.map((item) => (
                     <TableRow key={item.idCronograma} hover>
-                      <TableCell>{item.idCronograma}</TableCell>
-                      <TableCell>{item.idCotizacion}</TableCell>
+                      {puedeVerColumnasInternas && (
+                        <TableCell>{item.idCronograma}</TableCell>
+                      )}
+
+                      {puedeVerColumnasInternas && (
+                        <TableCell>{item.idCotizacion}</TableCell>
+                      )}
+
                       <TableCell>{item.nombreProyecto || "-"}</TableCell>
-                      <TableCell>{item.nombreCliente || "-"}</TableCell>
+
+                      {puedeVerColumnasInternas && (
+                        <TableCell>{item.nombreCliente || "-"}</TableCell>
+                      )}
+
                       <TableCell>{item.estadoCronograma || "-"}</TableCell>
                       <TableCell>{item.fechaInicio || "-"}</TableCell>
                       <TableCell>{item.fechaFin || "-"}</TableCell>

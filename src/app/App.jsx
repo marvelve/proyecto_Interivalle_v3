@@ -1,4 +1,4 @@
-import { Admin, Resource, CustomRoutes } from "react-admin";
+import { Admin, Resource, CustomRoutes, Layout } from "react-admin";
 import { Route } from "react-router-dom";
 
 import authProvider from "./authProvider";
@@ -6,6 +6,7 @@ import dataProvider from "./dataProvider";
 
 import Dashboard from "../components/Dashboard";
 import CustomMenu from "../components/CustomMenu";
+import CustomAppBar from "../components/CustomAppBar";
 
 import LoginPage from "../pages/LoginPage";
 import Register from "../pages/Register";
@@ -34,30 +35,46 @@ import SeguimientoObraList from "../resources/seguimientoObra/SeguimientoObraLis
 import SeguimientoList from "../resources/seguimientoObra/SeguimientoList";
 import AvanceShow from "../resources/seguimientoObra/AvanceShow";
 
+const CustomLayout = (props) => (
+  <Layout
+    {...props}
+    menu={CustomMenu}
+    appBar={CustomAppBar}
+  />
+);
+
 const App = () => {
   return (
     <Admin
       dashboard={Dashboard}
       authProvider={authProvider}
       dataProvider={dataProvider}
-      menu={CustomMenu}
+      layout={CustomLayout}
       loginPage={LoginPage}
     >
       <CustomRoutes noLayout>
-      <Route path="/register" element={<Register />} /> </CustomRoutes>
+        <Route path="/register" element={<Register />} />
+      </CustomRoutes>
+
       <CustomRoutes>
-      <Route path="/cotizacion-base" element={<CotizacionBase />} />
-      <Route path="/cotizaciones/:idCotizacion/vista" element={<CotizacionVista />} />
-      <Route path="/cotizacion-personalizada/formularios/:idCotizacion" element={<FormulariosCotizacionPersonalizada />}   />
-      <Route path="/cotizaciones-personalizadas/:idCotizacion/detalle" element={<CotizacionPersonalizadaDetalle />} />     
-      <Route path="/cotizaciones/:idCotizacion/cronograma" element={<CronogramaCreate />}/>
-      <Route path="/cronogramas/cotizacion/:idCotizacion" element={<CronogramaVista />} />
-      <Route path="/solicitudes/:idSolicitud/reprogramar" element={<SolicitudReprogramar />} />
-      {/* Seguimiento de obra por cronograma */}
+        <Route path="/cotizacion-base" element={<CotizacionBase />} />
+        <Route path="/cotizaciones/:idCotizacion/vista" element={<CotizacionVista />} />
+        <Route
+          path="/cotizacion-personalizada/formularios/:idCotizacion"
+          element={<FormulariosCotizacionPersonalizada />}
+        />
+        <Route
+          path="/cotizaciones-personalizadas/:idCotizacion/detalle"
+          element={<CotizacionPersonalizadaDetalle />}
+        />
+        <Route path="/cotizaciones/:idCotizacion/cronograma" element={<CronogramaCreate />} />
+        <Route path="/cronogramas/cotizacion/:idCotizacion" element={<CronogramaVista />} />
+        <Route path="/solicitudes/:idSolicitud/reprogramar" element={<SolicitudReprogramar />} />
         <Route path="/cronogramas/:idCronograma/seguimiento" element={<SeguimientoList />} />
-        <Route path="/cronogramas/:idCronograma/seguimiento/:idAvance" element={<AvanceShow/>} />
-      <Route path="/seguimiento" element={<SeguimientoObraList />} />
-    </CustomRoutes>
+        <Route path="/cronogramas/:idCronograma/seguimiento/:idAvance" element={<AvanceShow />} />
+        <Route path="/solicitudes/:idSolicitud/show" element={<SolicitudShow />} />
+        <Route path="/seguimiento" element={<SeguimientoObraList />} />
+      </CustomRoutes>
 
       {(permissions) => [
         permissions === "1" ? (
@@ -71,7 +88,7 @@ const App = () => {
           />
         ) : null,
 
-        permissions === "1" || permissions === "3" ? (
+        permissions === "1" || permissions === "2" || permissions === "3" ? (
           <Resource
             key="solicitudes"
             name="solicitudes"
@@ -82,7 +99,7 @@ const App = () => {
           />
         ) : null,
 
-        permissions === "1" || permissions === "2"|| permissions === "3" ? (
+        permissions === "1" || permissions === "2" || permissions === "3" ? (
           <Resource
             key="cotizaciones"
             name="cotizaciones"
@@ -104,7 +121,7 @@ const App = () => {
         ) : null,
 
         permissions === "1" || permissions === "2" || permissions === "3" ? (
-       <Resource
+          <Resource
             key="seguimiento"
             name="seguimiento"
             options={{ label: "Seguimiento de Obra" }}

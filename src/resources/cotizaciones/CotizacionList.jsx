@@ -40,7 +40,13 @@ const CotizacionList = () => {
     localStorage.getItem("usuarioCorreo") ||
     "";
 
-  const filtros = idRol === 3 ? { correoUsuario } : {};
+  const esAdmin = idRol === 1;
+  const esSupervisor = idRol === 2;
+  const esCliente = idRol === 3;
+
+  const puedeVerColumnasInternas = esAdmin || esSupervisor;
+
+  const filtros = esCliente ? { correoUsuario } : {};
 
   return (
     <List
@@ -52,9 +58,16 @@ const CotizacionList = () => {
       filter={filtros}
     >
       <Datagrid bulkActionButtons={false} rowClick={false}>
-        <TextField source="idCotizacion" label="ID" />
+        {puedeVerColumnasInternas && (
+          <TextField source="idCotizacion" label="ID" />
+        )}
+
         <TextField source="nombreProyecto" label="Proyecto" />
-        <TextField source="nombreUsuario" label="Cliente" />
+
+        {puedeVerColumnasInternas && (
+          <TextField source="nombreUsuario" label="Cliente" />
+        )}
+
         <TextField source="estado" label="Estado" />
         <DateField source="fechaCreacion" label="Fecha" showTime={false} />
 

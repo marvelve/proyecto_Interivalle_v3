@@ -18,18 +18,43 @@ const CronogramaActions = () => {
 const CronogramaList = () => {
   const redirect = useRedirect();
 
+  const idRol = Number(localStorage.getItem("idRol"));
+  const correoUsuario =
+    localStorage.getItem("correoUsuario") ||
+    localStorage.getItem("usuarioCorreo") ||
+    "";
+
+  const esAdmin = idRol === 1;
+  const esSupervisor = idRol === 2;
+  const esCliente = idRol === 3;
+
+  const puedeVerColumnasInternas = esAdmin || esSupervisor;
+
+  const filtros = esCliente ? { correoUsuario } : {};
+
   return (
     <List
       title="Cronogramas"
       actions={<CronogramaActions />}
       perPage={10}
       sort={{ field: "idCronograma", order: "DESC" }}
+      filter={filtros}
     >
       <Datagrid bulkActionButtons={false} rowClick={false}>
-        <TextField source="idCronograma" label="ID Cronograma" />
-        <TextField source="idCotizacion" label="ID Cotización" />
+        {puedeVerColumnasInternas && (
+          <TextField source="idCronograma" label="ID Cronograma" />
+        )}
+
+        {puedeVerColumnasInternas && (
+          <TextField source="idCotizacion" label="ID Cotización" />
+        )}
+
         <TextField source="nombreProyecto" label="Proyecto" />
-        <TextField source="nombreCliente" label="Cliente" />
+
+        {puedeVerColumnasInternas && (
+          <TextField source="nombreCliente" label="Cliente" />
+        )}
+
         <TextField source="estadoCronograma" label="Estado" />
         <DateField source="fechaInicio" label="Fecha inicio" showTime={false} />
         <DateField source="fechaFin" label="Fecha fin" showTime={false} />

@@ -7,17 +7,16 @@ import {
   FunctionField,
   TopToolbar,
   Button,
-  useRedirect,
-  useNotify,
-  useRefresh
+  useRedirect
 } from "react-admin";
 
 import AddIcon from "@mui/icons-material/Add";
-import { Chip } from "@mui/material";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import EventRepeatIcon from "@mui/icons-material/EventRepeat";
+import Tooltip from "@mui/material/Tooltip";
+import { Box, Chip } from "@mui/material";
 
-import httpClient, { apiUrl } from "../../app/httpClient";
 import SolicitudVacia from "./SolicitudVacia";
-
 
 /* ===============================
    BOTÓN CREAR COTIZACIÓN
@@ -46,13 +45,11 @@ const CrearCotizacionButton = ({ record }) => {
   );
 };
 
-
 /* ===============================
    BOTÓN CREAR NUEVA SOLICITUD
 ================================= */
 
 const SolicitudesActions = () => {
-
   const redirect = useRedirect();
 
   return (
@@ -67,22 +64,29 @@ const SolicitudesActions = () => {
   );
 };
 
-
 /* ===============================
    COMPONENTE PRINCIPAL
 ================================= */
 
 const SolicitudList = () => {
-
   const correoUsuario = localStorage.getItem("correoUsuario") || "";
-  const idRol = localStorage.getItem("idRol") || "";
+  const idRol = String(localStorage.getItem("idRol") || "");
 
-  const esAdmin = String(idRol) === "1";
+  const esAdmin = idRol === "1";
+  const esSupervisor = idRol === "2";
+
+  const puedeVerColumnasInternas = esAdmin || esSupervisor;
+  const puedeVerTodo = esAdmin || esSupervisor;
+  const puedeVerCelular = esAdmin || esSupervisor;
 
   const redirect = useRedirect();
 
   const handleReprogramar = (record) => {
     redirect(`/solicitudes/${record.idSolicitud}/reprogramar`);
+  };
+
+  const handleVerSolicitud = (record) => {
+    redirect(`/solicitudes/${record.idSolicitud}/show`);
   };
 
   return (
@@ -91,27 +95,25 @@ const SolicitudList = () => {
       resource="solicitudes"
       actions={<SolicitudesActions />}
       empty={<SolicitudVacia />}
-      filter={esAdmin ? {} : { correoUsuario }}
+      filter={puedeVerTodo ? {} : { correoUsuario }}
       sort={{ field: "idSolicitud", order: "DESC" }}
       perPage={10}
     >
-
       <Datagrid rowClick={false} bulkActionButtons={false}>
+        {puedeVerColumnasInternas && (
+          <TextField source="idSolicitud" label="ID" />
+        )}
 
-        <TextField source="idSolicitud" label="ID" />
-
-        <TextField source="correoUsuario" label="Correo Usuario" />
+        {puedeVerColumnasInternas && (
+          <TextField source="correoUsuario" label="Correo Usuario" />
+        )}
 
         <TextField source="tipoSolicitud" label="Tipo Solicitud" />
-
         <TextField source="nombreProyecto" label="Proyecto" />
-
-        {/* ESTADO CON COLOR */}
 
         <FunctionField
           label="Estado"
           render={(record) => {
-
             if (record.estado === "PENDIENTE") {
               return <Chip label="PENDIENTE" color="warning" />;
             }
@@ -122,6 +124,10 @@ const SolicitudList = () => {
 
             if (record.estado === "BORRADOR") {
               return <Chip label="BORRADOR" color="info" />;
+            }
+
+            if (record.estado === "REPROGRAMADA") {
+              return <Chip label="REPROGRAMADA" color="secondary" />;
             }
 
             return record.estado;
@@ -142,13 +148,23 @@ const SolicitudList = () => {
           }}
         />
 
-        {/* SERVICIOS */}
+        {puedeVerCelular && (
+          <FunctionField
+            label="Número Celular"
+            render={(record) => {
+              if (record?.tipoSolicitud !== "VISITA_TECNICA") return "-";
+              return record?.celularCliente || "-";
+            }}
+          />
+        )}
 
         <FunctionField
           label="Servicios"
           render={(record) => {
-
-            if (!record?.solicitudServicios || record.solicitudServicios.length === 0) {
+            if (
+              !record?.solicitudServicios ||
+              record.solicitudServicios.length === 0
+            ) {
               return "Sin servicios";
             }
 
@@ -158,42 +174,51 @@ const SolicitudList = () => {
           }}
         />
 
-        {/* ACCIONES */}
-
         <FunctionField
           label="Acciones"
           render={(record) => {
             if (
               record?.tipoSolicitud === "COTIZACION_BASE" &&
-              (record?.estado === "PENDIENTE" || record?.estado === "REPROGRAMADA")
+              (record?.estado === "PENDIENTE" ||
+                record?.estado === "REPROGRAMADA")
             ) {
-              return (
-                <CrearCotizacionButton record={record} />
-              );
+              return <CrearCotizacionButton record={record} />;
             }
 
             if (record?.tipoSolicitud === "VISITA_TECNICA") {
+              const puedeReprogramar =
+              record?.estado === "PENDIENTE" || record?.estado === "REPROGRAMADA";
+
               return (
-                <Button
-                  label="REPROGRAMAR"
-                  onClick={() => handleReprogramar(record)}
-                  sx={{
-                      backgroundColor: "#14a800",
-                      color: "#fff",
-                      px: 2,
-                      borderRadius: 1,
-                      "&:hover": { backgroundColor: "#118a00" }
-                    }}
-                />
+                <Box display="flex" gap={1} alignItems="center">
+                  <Tooltip title="Ver solicitud">
+                    <Button
+                      label=""
+                      onClick={() => handleVerSolicitud(record)}
+                      sx={{ minWidth: 36, padding: "6px" }}
+                    >
+                      <VisibilityIcon />
+                    </Button>
+                  </Tooltip>
+                {puedeReprogramar && (
+                  <Tooltip title="Reprogramar visita">
+                    <Button
+                      label=""
+                      onClick={() => handleReprogramar(record)}
+                      sx={{ minWidth: 36, padding: "6px", color: "#14a800" }}
+                    >
+                      <EventRepeatIcon />
+                    </Button>
+                  </Tooltip>
+                )}
+                </Box>
               );
             }
 
             return <span>-</span>;
           }}
         />
-
       </Datagrid>
-
     </List>
   );
 };
