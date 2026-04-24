@@ -37,7 +37,7 @@ const CotizacionBase = () => {
     cantidadPuertas: "",
     muebleAltoCocina: "",
     muebleBajoCocina: "",
-    cantidadMuebleBano: "",
+    cantidadBanos: "",
   });
 
   const [formDataVidrio, setFormDataVidrio] = useState({
@@ -229,8 +229,8 @@ const CotizacionBase = () => {
               muebleBajoCocina: formDataCarpinteria.muebleBajoCocina
                 ? Number(formDataCarpinteria.muebleBajoCocina)
                 : null,
-              cantidadMuebleBano: formDataCarpinteria.cantidadMuebleBano
-                ? Number(formDataCarpinteria.cantidadMuebleBano)
+              cantidadBanos: formDataCarpinteria.cantidadBanos
+                ? Number(formDataCarpinteria.cantidadBanos)
                 : null,
             }
           : null,
@@ -434,9 +434,9 @@ const CotizacionBase = () => {
               <Grid item xs={12} md={4}>
                 <TextField
                   fullWidth
-                  label="Cantidad mueble baño"
-                  name="cantidadMuebleBano"
-                  value={formDataCarpinteria.cantidadMuebleBano}
+                  label="Cantidad baños"
+                  name="cantidadBanos"
+                  value={formDataCarpinteria.cantidadBanos}
                   onChange={handleChangeCarpinteria}
                   type="number"
                   variant="standard"

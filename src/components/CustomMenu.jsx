@@ -11,6 +11,7 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import TimelineIcon from "@mui/icons-material/Timeline";
+import PriceChangeIcon from "@mui/icons-material/PriceChange";
 
 const CustomMenu = () => {
   const [open] = useSidebarState();
@@ -31,6 +32,14 @@ const CustomMenu = () => {
           primaryText="Usuarios"
           leftIcon={<GroupIcon />}
           sidebarIsOpen={open}
+        />
+      )}
+
+      {permissions === "1" && (
+        <Menu.Item
+          to="/catalogo-items"
+          primaryText="Actualización de precios"
+          leftIcon={<PriceChangeIcon />}
         />
       )}
 

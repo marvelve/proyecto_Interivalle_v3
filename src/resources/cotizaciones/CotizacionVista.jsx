@@ -35,6 +35,8 @@ const formatearNumero = (valor) => {
   }).format(Number(valor));
 };
 
+const toNumber = (valor) => Number(valor || 0);
+
 const estilos = {
   tabla: {
     width: "100%",
@@ -82,6 +84,33 @@ const estilos = {
 
 const normalizarTexto = (texto) => {
   return (texto || "").toString().trim().toLowerCase();
+};
+
+const detallesBase = (cotizacion) =>
+  cotizacion?.detalleBase || cotizacion?.detalles || [];
+
+const esDetalleCarpinteria = (item) => {
+  const tipoItem = (item?.tipoItem || "").toUpperCase();
+  const categoria = (item?.categoria || "").toUpperCase();
+  const servicio = (item?.servicio || item?.nombreServicio || "")
+    .toString()
+    .toUpperCase();
+
+  return (
+    tipoItem === "PRODUCTO" &&
+    (categoria.includes("CARPINTERIA") || servicio.includes("CARPINTER"))
+  );
+};
+
+const formatearCantidadUnidad = (item) => {
+  const cantidad = toNumber(item?.cantidad);
+  const unidad = (item?.unidad || "").toUpperCase();
+
+  if (unidad === "MT") {
+    return `${cantidad.toFixed(2)} MT`;
+  }
+
+  return Number.isInteger(cantidad) ? `${cantidad}` : cantidad.toFixed(2);
 };
 
 const construirFilasConRowSpan = (semanas = []) => {
@@ -190,22 +219,31 @@ const CotizacionVista = () => {
         ? `${apiUrl}/api/cliente/cotizaciones/${idCotizacion}/vista-completa`
         : `${apiUrl}/api/cotizaciones/${idCotizacion}/vista-completa`;
 
-      console.log("Intentando vista completa:", urlVistaCompleta);
-
       const { json } = await httpClient(urlVistaCompleta);
-
-      console.log("Vista completa cargada:", json);
 
       setCotizacion({
         ...json,
+        detalleBase: json.detalleBase || json.detalles || [],
         semanas: json.semanas || [],
+        totalManoObra: json.totalManoObra ?? 0,
+        totalMateriales: json.totalMateriales ?? 0,
+        totalProductos: json.totalProductos ?? 0,
+        totalEstimado: json.totalEstimado ?? 0,
+        totalEstimadoBase:
+          json.totalEstimadoBase ??
+          (Number(json.totalManoObra || 0) +
+            Number(json.totalMateriales || 0) +
+            Number(json.totalProductos || 0)),
+        totalAdicionales: json.totalAdicionales ?? 0,
+        totalGeneral:
+          json.totalGeneral ??
+          json.totalEstimado ??
+          (Number(json.totalManoObra || 0) +
+            Number(json.totalMateriales || 0) +
+            Number(json.totalProductos || 0) +
+            Number(json.totalAdicionales || 0)),
       });
     } catch (error) {
-      console.warn(
-        "Falló vista-completa, intentando cargar cotización base...",
-        error
-      );
-
       const mensaje = error?.body?.message || error?.message || "";
       const noHayPersonalizada = mensaje.includes(
         "No existe cotización personalizada"
@@ -222,11 +260,12 @@ const CotizacionVista = () => {
           ? `${apiUrl}/api/cliente/cotizaciones/${idCotizacion}`
           : `${apiUrl}/api/cotizaciones/${idCotizacion}`;
 
-        console.log("Intentando cotización base:", urlBase);
-
         const { json } = await httpClient(urlBase);
 
-        console.log("Cotización base cargada:", json);
+        const totalBase =
+          Number(json.totalManoObra || 0) +
+          Number(json.totalMateriales || 0) +
+          Number(json.totalProductos || 0);
 
         setCotizacion({
           idCotizacion: json.idCotizacion,
@@ -235,10 +274,10 @@ const CotizacionVista = () => {
           totalManoObra: json.totalManoObra ?? 0,
           totalMateriales: json.totalMateriales ?? 0,
           totalProductos: json.totalProductos ?? 0,
-          totalEstimado: json.totalEstimado ?? 0,
-          totalEstimadoBase: json.totalEstimado ?? 0,
+          totalEstimado: json.totalEstimado ?? totalBase,
+          totalEstimadoBase: totalBase,
           totalAdicionales: 0,
-          totalGeneral: json.totalEstimado ?? 0,
+          totalGeneral: json.totalGeneral ?? json.totalEstimado ?? totalBase,
           detalleBase: json.detalles || [],
           semanas: json.semanas || [],
           personalizada: null,
@@ -375,6 +414,19 @@ const CotizacionVista = () => {
     return construirFilasConRowSpan(semanasFiltradas);
   }, [semanasFiltradas]);
 
+  const detalles = useMemo(() => detallesBase(cotizacion), [cotizacion]);
+
+  const detallesCarpinteria = useMemo(() => {
+    return detalles.filter(esDetalleCarpinteria);
+  }, [detalles]);
+
+  const totalCarpinteria = useMemo(() => {
+    return detallesCarpinteria.reduce(
+      (acc, item) => acc + toNumber(item?.subtotalVenta),
+      0
+    );
+  }, [detallesCarpinteria]);
+
   const totalesFiltrados = useMemo(() => {
     let totalManoObra = 0;
     let totalMateriales = 0;
@@ -392,6 +444,30 @@ const CotizacionVista = () => {
       totalGeneral,
     };
   }, [semanasFiltradas]);
+
+  const totalManoObraMostrar =
+    filtroSemana || filtroActividad
+      ? totalesFiltrados.totalManoObra
+      : toNumber(cotizacion?.totalManoObra);
+
+  const totalMaterialesMostrar =
+    filtroSemana || filtroActividad
+      ? totalesFiltrados.totalMateriales
+      : toNumber(cotizacion?.totalMateriales);
+
+  const totalProductosMostrar = toNumber(cotizacion?.totalProductos);
+
+  const totalBaseMostrar =
+    toNumber(cotizacion?.totalManoObra) +
+    toNumber(cotizacion?.totalMateriales) +
+    toNumber(cotizacion?.totalProductos);
+
+  const totalAdicionalesMostrar = toNumber(cotizacion?.totalAdicionales);
+
+  const totalGeneralMostrar =
+    toNumber(cotizacion?.totalGeneral) ||
+    toNumber(cotizacion?.totalEstimado) ||
+    totalBaseMostrar + totalAdicionalesMostrar;
 
   const limpiarFiltros = () => {
     setFiltroSemana("");
@@ -435,11 +511,7 @@ const CotizacionVista = () => {
             <Box sx={estilos.resumenCard}>
               <Typography variant="subtitle2">Total Mano de Obra</Typography>
               <Typography variant="h6">
-                {formatearMoneda(
-                  filtroSemana || filtroActividad
-                    ? totalesFiltrados.totalManoObra
-                    : cotizacion.totalManoObra
-                )}
+                {formatearMoneda(totalManoObraMostrar)}
               </Typography>
             </Box>
           </Grid>
@@ -448,11 +520,16 @@ const CotizacionVista = () => {
             <Box sx={estilos.resumenCard}>
               <Typography variant="subtitle2">Total Materiales</Typography>
               <Typography variant="h6">
-                {formatearMoneda(
-                  filtroSemana || filtroActividad
-                    ? totalesFiltrados.totalMateriales
-                    : cotizacion.totalMateriales
-                )}
+                {formatearMoneda(totalMaterialesMostrar)}
+              </Typography>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} md={2}>
+            <Box sx={estilos.resumenCard}>
+              <Typography variant="subtitle2">Total Productos</Typography>
+              <Typography variant="h6">
+                {formatearMoneda(totalProductosMostrar)}
               </Typography>
             </Box>
           </Grid>
@@ -461,9 +538,7 @@ const CotizacionVista = () => {
             <Box sx={estilos.resumenCard}>
               <Typography variant="subtitle2">Total Base</Typography>
               <Typography variant="h6">
-                {formatearMoneda(
-                  cotizacion.totalEstimadoBase ?? cotizacion.totalEstimado
-                )}
+                {formatearMoneda(totalBaseMostrar)}
               </Typography>
             </Box>
           </Grid>
@@ -472,7 +547,7 @@ const CotizacionVista = () => {
             <Box sx={estilos.resumenCard}>
               <Typography variant="subtitle2">Total Adicionales</Typography>
               <Typography variant="h6">
-                {formatearMoneda(cotizacion.totalAdicionales ?? 0)}
+                {formatearMoneda(totalAdicionalesMostrar)}
               </Typography>
             </Box>
           </Grid>
@@ -481,9 +556,7 @@ const CotizacionVista = () => {
             <Box sx={estilos.resumenCard}>
               <Typography variant="subtitle2">Total General</Typography>
               <Typography variant="h6">
-                {formatearMoneda(
-                  cotizacion.totalGeneral ?? cotizacion.totalEstimado ?? 0
-                )}
+                {formatearMoneda(totalGeneralMostrar)}
               </Typography>
             </Box>
           </Grid>
@@ -670,6 +743,53 @@ const CotizacionVista = () => {
           </table>
         </Box>
 
+        {detallesCarpinteria.length > 0 && (
+          <>
+            <Typography variant="h5" fontWeight="bold" mt={5} mb={2}>
+              Detalle Carpintería
+            </Typography>
+
+            <Box sx={{ overflowX: "auto" }}>
+              <table style={estilos.tabla}>
+                <thead>
+                  <tr>
+                    <th style={estilos.th}>Cantidad / MT</th>
+                    <th style={estilos.th}>Producto</th>
+                    <th style={estilos.th}>Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detallesCarpinteria.map((item, index) => (
+                    <tr key={item.idDetalle || index}>
+                      <td style={estilos.td}>
+                        {formatearCantidadUnidad(item)}
+                      </td>
+                      <td style={estilos.td}>
+                        {item.descripcion || item.actividadMaterial || "-"}
+                      </td>
+                      <td style={estilos.td}>
+                        {formatearMoneda(item.subtotalVenta)}
+                      </td>
+                    </tr>
+                  ))}
+
+                  <tr>
+                    <td
+                      style={{ ...estilos.td, fontWeight: "bold" }}
+                      colSpan={2}
+                    >
+                      Total Carpintería
+                    </td>
+                    <td style={{ ...estilos.td, fontWeight: "bold" }}>
+                      {formatearMoneda(totalCarpinteria)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </Box>
+          </>
+        )}
+
         <Typography variant="h5" fontWeight="bold" mt={5} mb={2}>
           Actividades adicionales
         </Typography>
@@ -768,22 +888,33 @@ const CotizacionVista = () => {
             </Typography>
 
             <Typography sx={{ mb: 1 }}>
+              <strong>Total mano de obra:</strong>{" "}
+              {formatearMoneda(totalManoObraMostrar)}
+            </Typography>
+
+            <Typography sx={{ mb: 1 }}>
+              <strong>Total materiales:</strong>{" "}
+              {formatearMoneda(totalMaterialesMostrar)}
+            </Typography>
+
+            <Typography sx={{ mb: 1 }}>
+              <strong>Total carpintería / productos:</strong>{" "}
+              {formatearMoneda(totalProductosMostrar)}
+            </Typography>
+
+            <Typography sx={{ mb: 1 }}>
               <strong>Total cotización base:</strong>{" "}
-              {formatearMoneda(
-                cotizacion.totalEstimadoBase ?? cotizacion.totalEstimado
-              )}
+              {formatearMoneda(totalBaseMostrar)}
             </Typography>
 
             <Typography sx={{ mb: 1 }}>
               <strong>Total adicionales:</strong>{" "}
-              {formatearMoneda(cotizacion.totalAdicionales ?? 0)}
+              {formatearMoneda(totalAdicionalesMostrar)}
             </Typography>
 
             <Typography variant="h6" color="success.main">
               <strong>Total general:</strong>{" "}
-              {formatearMoneda(
-                cotizacion.totalGeneral ?? cotizacion.totalEstimado ?? 0
-              )}
+              {formatearMoneda(totalGeneralMostrar)}
             </Typography>
           </Paper>
         </Box>

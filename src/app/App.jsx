@@ -35,6 +35,9 @@ import SeguimientoObraList from "../resources/seguimientoObra/SeguimientoObraLis
 import SeguimientoList from "../resources/seguimientoObra/SeguimientoList";
 import AvanceShow from "../resources/seguimientoObra/AvanceShow";
 
+import CatalogoItemList from "../resources/Catalogo/CatalogoItemList";
+import CatalogoItemEdit from "../resources/Catalogo/CatalogoItemEdit";
+
 const CustomLayout = (props) => (
   <Layout
     {...props}
@@ -128,6 +131,16 @@ const App = () => {
             list={SeguimientoObraList}
           />
         ) : null,
+
+        permissions === "1" ? (
+          <Resource
+            key="catalogo-items"
+            name="catalogo-items"
+            options={{ label: "Actualización de precios" }}
+            list={CatalogoItemList}
+            edit={CatalogoItemEdit}
+          />
+        ): null,
       ]}
     </Admin>
   );

@@ -13,7 +13,8 @@ const mapIdField = (data) => {
         item.idSolicitud ??
         item.idCotizacion ??
         item.idCronograma ??
-        item.idAvance,
+        item.idAvance ??
+        item.idCatalogoItem,
     }));
     
   }
@@ -26,7 +27,8 @@ const mapIdField = (data) => {
       data.idSolicitud ??
       data.idCotizacion ??
       data.idCronograma ??
-      data.idAvance,
+      data.idAvance ??
+      data.idCatalogoItem,
   };
 };
 
@@ -87,6 +89,50 @@ getList: async (resource, params) => {
       };
     }
 
+    if (resource === "catalogo-items") {
+        const { json } = await httpClient(`${apiUrl}/api/catalogo-items`);
+
+        let data = mapIdField(json);
+
+        const filtro = params.filter || {};
+
+        if (filtro.q) {
+          const q = filtro.q.toLowerCase();
+
+          data = data.filter((item) =>
+            String(item.nombreItem || "").toLowerCase().includes(q) ||
+            String(item.categoria || "").toLowerCase().includes(q) ||
+            String(item.tipoItem || "").toLowerCase().includes(q) ||
+            String(item.nombreServicio || "").toLowerCase().includes(q)
+          );
+        }
+
+        if (filtro.tipoItem) {
+          data = data.filter((item) => item.tipoItem === filtro.tipoItem);
+        }
+
+        if (filtro.categoria) {
+          data = data.filter((item) =>
+            String(item.categoria || "")
+              .toLowerCase()
+              .includes(filtro.categoria.toLowerCase())
+          );
+        }
+
+        if (filtro.nombreServicio) {
+          data = data.filter((item) =>
+            String(item.nombreServicio || "")
+              .toLowerCase()
+              .includes(filtro.nombreServicio.toLowerCase())
+          );
+        }
+
+        return {
+          data,
+          total: data.length,
+        };
+      }
+
   const response = await baseDataProvider.getList(resource, params);
   return {
     ...response,
@@ -109,7 +155,6 @@ getOne: async (resource, params) => {
     data: mapIdField(json),
   };
 }
-
   const response = await baseDataProvider.getOne(resource, params);
   return {
     ...response,
@@ -141,13 +186,30 @@ getOne: async (resource, params) => {
     };
   },
 
-  update: async (resource, params) => {
-    const response = await baseDataProvider.update(resource, params);
-    return {
-      ...response,
-      data: mapIdField(response.data),
-    };
-  },
+
+    update: async (resource, params) => {
+      if (resource === "catalogo-items") {
+        const { json } = await httpClient(
+          `${apiUrl}/api/catalogo-items/${params.id}/precio`,
+          {
+            method: "PUT",
+            body: JSON.stringify(params.data),
+          }
+        );
+
+        return {
+          data: mapIdField(json),
+        };
+      }
+
+      const response = await baseDataProvider.update(resource, params);
+
+      return {
+        ...response,
+        data: mapIdField(response.data),
+      };
+    },
+
 };
 
 export default dataProvider;
